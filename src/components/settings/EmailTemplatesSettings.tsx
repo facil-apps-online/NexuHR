@@ -173,19 +173,19 @@ export function EmailTemplatesSettings() {
     queryFn: async () => {
       if (!profile?.tenant_id) return null;
       const { data, error } = await supabase
-        .from("tenants")
-        .select("settings")
-        .eq("id", profile.tenant_id)
-        .single();
+        .from("tenant_settings")
+        .select("settings_data")
+        .eq("tenant_id", profile.tenant_id)
+        .maybeSingle();
       if (error) throw error;
-      return data;
+      return data || { settings_data: {} };
     },
     enabled: !!profile?.tenant_id,
   });
 
   useEffect(() => {
-    if (tenantData?.settings) {
-      const tenantSettings = tenantData.settings as Record<string, unknown>;
+    if (tenantData?.settings_data) {
+      const tenantSettings = tenantData.settings_data as Record<string, unknown>;
       if (tenantSettings.emailTemplates) {
         setTemplates({ ...defaultTemplates, ...(tenantSettings.emailTemplates as EmailTemplates) });
       }
@@ -196,16 +196,22 @@ export function EmailTemplatesSettings() {
     mutationFn: async (newTemplates: EmailTemplates) => {
       if (!profile?.tenant_id) throw new Error("No tenant");
       
-      const currentSettings = (tenantData?.settings as Record<string, unknown>) || {};
+      const currentSettings = (tenantData?.settings_data as Record<string, unknown>) || {};
       const updatedSettings = {
         ...currentSettings,
         emailTemplates: newTemplates,
       };
 
+      const platformId = import.meta.env.VITE_PLATFORM_ID;
+      if (!platformId) throw new Error("No platform_id found");
+
       const { error } = await supabase
-        .from("tenants")
-        .update({ settings: JSON.parse(JSON.stringify(updatedSettings)) })
-        .eq("id", profile.tenant_id);
+        .from("tenant_settings")
+        .upsert({ 
+          tenant_id: profile.tenant_id, 
+          platform_id: platformId,
+          settings_data: JSON.parse(JSON.stringify(updatedSettings)) 
+        }, { onConflict: "tenant_id,platform_id" });
       
       if (error) throw error;
     },

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { EmployeePortalAuthProvider } from "@/hooks/useEmployeePortalAuth";
+import { supabase } from "@/lib/supabaseClient";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { EmployeePortalProtectedRoute } from "@/components/portal/EmployeePortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
@@ -24,6 +25,7 @@ import Reglamento from "./pages/Reglamento";
 import Configuracion from "./pages/Configuracion";
 import Notificaciones from "./pages/Notificaciones";
 import Auth from "./pages/Auth";
+import RegisterTenant from "./pages/RegisterTenant";
 import NotFound from "./pages/NotFound";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalChangePassword from "./pages/portal/PortalChangePassword";
@@ -39,14 +41,15 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <EmployeePortalAuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider supabaseClient={supabase}>
+        <EmployeePortalAuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/register-tenant" element={<RegisterTenant />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/empleados" element={<ProtectedRoute><Empleados /></ProtectedRoute>} />
               <Route path="/empleados/:id" element={<ProtectedRoute><EmpleadoDetalle /></ProtectedRoute>} />
@@ -78,10 +81,10 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </EmployeePortalAuthProvider>
-    </AuthProvider>
+          </TooltipProvider>
+        </EmployeePortalAuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

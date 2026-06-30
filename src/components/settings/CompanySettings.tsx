@@ -24,7 +24,13 @@ interface Tenant {
   id: string;
   name: string;
   logo_url: string | null;
-  settings: TenantSettings | null;
+  tax_id: string | null;
+  physical_address_line1: string | null;
+  contact_phone: string | null;
+  physical_city: string | null;
+  physical_state: string | null;
+  website: string | null;
+  notes: string | null;
 }
 
 export function CompanySettings() {
@@ -50,7 +56,7 @@ export function CompanySettings() {
       if (!profile?.tenant_id) return null;
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, name, logo_url, settings")
+        .select("id, name, logo_url, tax_id, physical_address_line1, contact_phone, physical_city, physical_state, website, notes")
         .eq("id", profile.tenant_id)
         .single();
       if (error) throw error;
@@ -61,16 +67,15 @@ export function CompanySettings() {
 
   useEffect(() => {
     if (tenant) {
-      const settings = (tenant.settings || {}) as TenantSettings;
       setFormData({
         name: tenant.name || "",
-        nit: settings.nit || "",
-        address: settings.address || "",
-        phone: settings.phone || "",
-        city: settings.city || "",
-        country: settings.country || "",
-        industry: settings.industry || "",
-        website: settings.website || "",
+        nit: tenant.tax_id || "",
+        address: tenant.physical_address_line1 || "",
+        phone: tenant.contact_phone || "",
+        city: tenant.physical_city || "",
+        country: tenant.physical_state || "",
+        industry: tenant.notes || "",
+        website: tenant.website || "",
       });
     }
   }, [tenant]);
@@ -78,13 +83,19 @@ export function CompanySettings() {
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!profile?.tenant_id) throw new Error("No tenant found");
-      const settings = {
-        nit: data.nit, address: data.address, phone: data.phone,
-        city: data.city, country: data.country, industry: data.industry, website: data.website,
-      };
       const { error } = await supabase
         .from("tenants")
-        .update({ name: data.name, settings: settings as Json, updated_at: new Date().toISOString() })
+        .update({ 
+          name: data.name, 
+          tax_id: data.nit,
+          physical_address_line1: data.address,
+          contact_phone: data.phone,
+          physical_city: data.city,
+          physical_state: data.country,
+          notes: data.industry,
+          website: data.website,
+          updated_at: new Date().toISOString() 
+        })
         .eq("id", profile.tenant_id);
       if (error) throw error;
     },

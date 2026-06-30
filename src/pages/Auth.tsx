@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Mail, Lock, User, Loader2 } from "lucide-react";
 import nexurhIcon from "@/assets/nexurh-icon.svg";
 
@@ -35,37 +36,29 @@ export default function Auth() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const { login } = useAuth();
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            variant: "destructive",
-            title: "Error de autenticación",
-            description: "Email o contraseña incorrectos",
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: error.message,
-          });
-        }
-      }
+      await login(email, password);
+      // login() de useAuth se encarga de la redirección a "/" al finalizar exitosamente
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Ocurrió un error inesperado",
-      });
+      if (error.message.includes("Invalid login credentials") || error.message.includes("Credenciales")) {
+        toast({
+          variant: "destructive",
+          title: "Error de autenticación",
+          description: "Email o contraseña incorrectos",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Ocurrió un error inesperado",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

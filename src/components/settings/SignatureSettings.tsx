@@ -40,36 +40,42 @@ export function SignatureSettings() {
     queryFn: async () => {
       if (!profile?.tenant_id) return null;
       const { data, error } = await supabase
-        .from("tenants")
-        .select("id, settings")
-        .eq("id", profile.tenant_id)
-        .single();
+        .from("tenant_settings")
+        .select("tenant_id, settings_data")
+        .eq("tenant_id", profile.tenant_id)
+        .maybeSingle();
       if (error) throw error;
-      return data;
+      return data || { tenant_id: profile.tenant_id, settings_data: {} };
     },
     enabled: !!profile?.tenant_id,
   });
 
   const signatureModules: string[] =
-    (tenant?.settings as any)?.signature_modules || [];
+    (tenant?.settings_data as any)?.signature_modules || [];
   const evidenceModules: string[] =
-    (tenant?.settings as any)?.evidence_modules || [];
+    (tenant?.settings_data as any)?.evidence_modules || [];
 
   const toggleMutation = useMutation({
     mutationFn: async ({ moduleCode, enabled, settingKey }: { moduleCode: string; enabled: boolean; settingKey: "signature_modules" | "evidence_modules" }) => {
       if (!tenant) throw new Error("Tenant no encontrado");
 
-      const currentSettings = (tenant.settings as Record<string, any>) || {};
+      const currentSettings = (tenant.settings_data as Record<string, any>) || {};
       const current: string[] = currentSettings[settingKey] || [];
 
       const updated = enabled
         ? [...current, moduleCode]
         : current.filter((c: string) => c !== moduleCode);
 
+      const platformId = import.meta.env.VITE_PLATFORM_ID;
+      if (!platformId) throw new Error("No platform_id found");
+
       const { error } = await supabase
-        .from("tenants")
-        .update({ settings: { ...currentSettings, [settingKey]: updated } })
-        .eq("id", tenant.id);
+        .from("tenant_settings")
+        .upsert({ 
+          tenant_id: tenant.tenant_id,
+          platform_id: platformId,
+          settings_data: { ...currentSettings, [settingKey]: updated } 
+        }, { onConflict: "tenant_id,platform_id" });
       if (error) throw error;
     },
     onSuccess: () => {
