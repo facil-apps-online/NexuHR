@@ -24,6 +24,7 @@ import Nomina from "./pages/Nomina";
 import Reglamento from "./pages/Reglamento";
 import Configuracion from "./pages/Configuracion";
 import Notificaciones from "./pages/Notificaciones";
+import Incapacidades from "./pages/Incapacidades";
 import Auth from "./pages/Auth";
 import RegisterTenant from "./pages/RegisterTenant";
 import NotFound from "./pages/NotFound";
@@ -36,6 +37,14 @@ import PortalDesprendibles from "./pages/portal/PortalDesprendibles";
 import PortalReglamento from "./pages/portal/PortalReglamento";
 import PortalCertificados from "./pages/portal/PortalCertificados";
 import PortalPerfil from "./pages/portal/PortalPerfil";
+import PortalCursos from "./pages/portal/PortalCursos";
+import PortalEvaluaciones from "./pages/portal/PortalEvaluaciones";
+import PortalEventos from "./pages/portal/PortalEventos";
+import PortalExamenes from "./pages/portal/PortalExamenes";
+import PortalDotacion from "./pages/portal/PortalDotacion";
+import PortalVigilancias from "./pages/portal/PortalVigilancias";
+import PortalIncapacidades from "./pages/portal/PortalIncapacidades";
+import PortalHistorial from "./pages/portal/PortalHistorial";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +75,7 @@ const App = () => (
               <Route path="/reglamento" element={<ProtectedRoute><Reglamento /></ProtectedRoute>} />
               <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
               <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
+              <Route path="/incapacidades" element={<ProtectedRoute><Incapacidades /></ProtectedRoute>} />
 
               {/* Employee Portal — case-insensitive aliases */}
               <Route path="/Funcionarios" element={<PortalLogin />} />
@@ -74,10 +84,20 @@ const App = () => (
               <Route path="/Funcionarios/inicio" element={<EmployeePortalProtectedRoute><PortalDashboard /></EmployeePortalProtectedRoute>} />
               <Route path="/Funcionarios/pendientes/firmar" element={<EmployeePortalProtectedRoute><PortalPendientesFirmar /></EmployeePortalProtectedRoute>} />
               <Route path="/Funcionarios/pendientes/hacer" element={<EmployeePortalProtectedRoute><PortalPendientesHacer /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/mi-actividad" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/mi-actividad/cursos" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
               <Route path="/Funcionarios/desprendibles" element={<EmployeePortalProtectedRoute><PortalDesprendibles /></EmployeePortalProtectedRoute>} />
               <Route path="/Funcionarios/reglamento" element={<EmployeePortalProtectedRoute><PortalReglamento /></EmployeePortalProtectedRoute>} />
               <Route path="/Funcionarios/certificados" element={<EmployeePortalProtectedRoute><PortalCertificados /></EmployeePortalProtectedRoute>} />
               <Route path="/Funcionarios/perfil" element={<EmployeePortalProtectedRoute><PortalPerfil /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/cursos" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/evaluaciones" element={<EmployeePortalProtectedRoute><PortalEvaluaciones /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/eventos" element={<EmployeePortalProtectedRoute><PortalEventos /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/examenes" element={<EmployeePortalProtectedRoute><PortalExamenes /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/dotacion" element={<EmployeePortalProtectedRoute><PortalDotacion /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/vigilancias" element={<EmployeePortalProtectedRoute><PortalVigilancias /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/incapacidades" element={<EmployeePortalProtectedRoute><PortalIncapacidades /></EmployeePortalProtectedRoute>} />
+              <Route path="/Funcionarios/historial" element={<EmployeePortalProtectedRoute><PortalHistorial /></EmployeePortalProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

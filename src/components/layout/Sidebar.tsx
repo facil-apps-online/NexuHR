@@ -18,7 +18,7 @@ import {
   Banknote,
   BookOpen,
   Mail,
-  
+  HeartPulse,
   LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,7 @@ const navigation: NavItem[] = [
   { name: "Empleados", href: "/empleados", icon: Users, moduleCode: "empleados" },
   { name: "Vigilancias", href: "/vigilancias", icon: ShieldCheck, moduleCode: "vigilancias" },
   { name: "Exámenes Médicos", href: "/examenes", icon: Stethoscope, moduleCode: "examenes" },
+  { name: "Incapacidades", href: "/incapacidades", icon: HeartPulse, moduleCode: "incapacidades" },
   { name: "Cursos", href: "/cursos", icon: GraduationCap, moduleCode: "cursos" },
   { name: "Dotación", href: "/dotacion", icon: Shirt, moduleCode: "dotacion" },
   { name: "Comités", href: "/comites", icon: UserCheck, moduleCode: "comites" },

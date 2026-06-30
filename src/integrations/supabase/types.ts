@@ -754,6 +754,60 @@ export type Database = {
           },
         ]
       }
+      employee_activity_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          employee_id: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          tenant_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          employee_id: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          tenant_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          employee_id?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          tenant_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_activity_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_activity_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_contracts: {
         Row: {
           active: boolean | null
@@ -1446,6 +1500,7 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           uploaded_by: string | null
+          uploaded_by_employee_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1461,6 +1516,7 @@ export type Database = {
           tenant_id: string
           updated_at?: string | null
           uploaded_by?: string | null
+          uploaded_by_employee_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1476,6 +1532,7 @@ export type Database = {
           tenant_id?: string
           updated_at?: string | null
           uploaded_by?: string | null
+          uploaded_by_employee_id?: string | null
         }
         Relationships: [
           {
@@ -1490,6 +1547,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidences_uploaded_by_employee_id_fkey"
+            columns: ["uploaded_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -1604,6 +1668,144 @@ export type Database = {
           },
         ]
       }
+      incapacidad_types: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_standard: boolean
+          name: string
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_standard?: boolean
+          name: string
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_standard?: boolean
+          name?: string
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incapacidad_types_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incapacidades: {
+        Row: {
+          codigo_cie: string | null
+          created_at: string | null
+          created_by: string | null
+          diagnostico: string | null
+          dias: number
+          documento_url: string | null
+          employee_id: string
+          entidad: string | null
+          estado: Database["public"]["Enums"]["incapacidad_estado"]
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          notas_internas: string | null
+          numero_radicado: string | null
+          origen: Database["public"]["Enums"]["incapacidad_origen"]
+          prorroga_de: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          tenant_id: string
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo_cie?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          diagnostico?: string | null
+          dias: number
+          documento_url?: string | null
+          employee_id: string
+          entidad?: string | null
+          estado?: Database["public"]["Enums"]["incapacidad_estado"]
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          notas_internas?: string | null
+          numero_radicado?: string | null
+          origen?: Database["public"]["Enums"]["incapacidad_origen"]
+          prorroga_de?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          tenant_id: string
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo_cie?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          diagnostico?: string | null
+          dias?: number
+          documento_url?: string | null
+          employee_id?: string
+          entidad?: string | null
+          estado?: Database["public"]["Enums"]["incapacidad_estado"]
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          notas_internas?: string | null
+          numero_radicado?: string | null
+          origen?: Database["public"]["Enums"]["incapacidad_origen"]
+          prorroga_de?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          tenant_id?: string
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incapacidades_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incapacidades_prorroga_de_fkey"
+            columns: ["prorroga_de"]
+            isOneToOne: false
+            referencedRelation: "incapacidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incapacidades_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modules: {
         Row: {
           active: boolean | null
@@ -1681,6 +1883,7 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string | null
+          employee_id: string | null
           id: string
           link: string | null
           message: string
@@ -1688,10 +1891,11 @@ export type Database = {
           tenant_id: string
           title: string
           type: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          employee_id?: string | null
           id?: string
           link?: string | null
           message: string
@@ -1699,10 +1903,11 @@ export type Database = {
           tenant_id: string
           title: string
           type?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          employee_id?: string | null
           id?: string
           link?: string | null
           message?: string
@@ -1710,9 +1915,16 @@ export type Database = {
           tenant_id?: string
           title?: string
           type?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2684,6 +2896,13 @@ export type Database = {
       evaluation_status: "pendiente" | "en_proceso" | "completada" | "cancelada"
       event_status: "borrador" | "en_progreso" | "completado" | "cancelado"
       exam_status: "pendiente" | "vigente" | "vencido" | "proximo_vencer"
+      incapacidad_estado:
+        | "registrada"
+        | "en_revision"
+        | "aprobada"
+        | "rechazada"
+        | "transcrita_nomina"
+      incapacidad_origen: "admin" | "portal_empleado"
       permission_action:
         | "ver"
         | "crear"
@@ -2826,6 +3045,14 @@ export const Constants = {
       evaluation_status: ["pendiente", "en_proceso", "completada", "cancelada"],
       event_status: ["borrador", "en_progreso", "completado", "cancelado"],
       exam_status: ["pendiente", "vigente", "vencido", "proximo_vencer"],
+      incapacidad_estado: [
+        "registrada",
+        "en_revision",
+        "aprobada",
+        "rechazada",
+        "transcrita_nomina",
+      ],
+      incapacidad_origen: ["admin", "portal_empleado"],
       permission_action: [
         "ver",
         "crear",
