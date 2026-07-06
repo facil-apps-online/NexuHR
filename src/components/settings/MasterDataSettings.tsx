@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, FileText, Briefcase, Building2, Loader2, Activity, Stethoscope, Lock, GraduationCap, BookOpen, HardHat, Users, CalendarCheck, ClipboardCheck } from "lucide-react";
+import { Plus, Pencil, FileText, Briefcase, Building2, Loader2, Activity, Stethoscope, Lock, GraduationCap, BookOpen, HardHat, Users, CalendarCheck, ClipboardCheck, Monitor, Package, Wrench, EyeOff, Eye } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-type MasterDataType = "document_types" | "positions" | "departments" | "vigilancia_types" | "exam_types" | "course_providers" | "course_types" | "dotacion_types" | "committee_roles" | "event_types" | "evaluation_types";
+type MasterDataType = "document_types" | "positions" | "departments" | "vigilancia_types" | "exam_types" | "course_providers" | "course_types" | "dotacion_types" | "committee_roles" | "event_types" | "evaluation_types" | "activo_fijo_tipos" | "activo_fijo_estados" | "activo_fijo_marcas";
 
 interface MasterDataItem {
   id: string;
@@ -128,6 +129,24 @@ function MasterDataForm({ type, item, onSuccess, onCancel }: MasterDataFormProps
             .update({ name, active, description })
             .eq("id", item.id);
           if (error) throw error;
+        } else if (type === "activo_fijo_tipos") {
+          const { error } = await supabase
+            .from("activo_fijo_tipos" as any)
+            .update({ name, active, description })
+            .eq("id", item.id);
+          if (error) throw error;
+        } else if (type === "activo_fijo_estados") {
+          const { error } = await supabase
+            .from("activo_fijo_estados" as any)
+            .update({ name, active, description })
+            .eq("id", item.id);
+          if (error) throw error;
+        } else if (type === "activo_fijo_marcas") {
+          const { error } = await supabase
+            .from("activo_fijo_marcas" as any)
+            .update({ name, active })
+            .eq("id", item.id);
+          if (error) throw error;
         }
         toast.success("Registro actualizado");
       } else {
@@ -185,6 +204,21 @@ function MasterDataForm({ type, item, onSuccess, onCancel }: MasterDataFormProps
           const { error } = await supabase
             .from("evaluation_types" as any)
             .insert([{ name, active, description, tenant_id: profile.tenant_id, is_standard: false }]);
+          if (error) throw error;
+        } else if (type === "activo_fijo_tipos") {
+          const { error } = await supabase
+            .from("activo_fijo_tipos" as any)
+            .insert([{ name, active, description, tenant_id: profile.tenant_id, is_standard: false }]);
+          if (error) throw error;
+        } else if (type === "activo_fijo_estados") {
+          const { error } = await supabase
+            .from("activo_fijo_estados" as any)
+            .insert([{ name, active, description, tenant_id: profile.tenant_id, is_standard: false }]);
+          if (error) throw error;
+        } else if (type === "activo_fijo_marcas") {
+          const { error } = await supabase
+            .from("activo_fijo_marcas" as any)
+            .insert([{ name, active, tenant_id: profile.tenant_id, is_standard: false }]);
           if (error) throw error;
         }
         toast.success("Registro creado");
@@ -264,6 +298,9 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MasterDataItem | null>(null);
   const queryClient = useQueryClient();
+  const { currentAssignment } = useAuth();
+  const tenantId = currentAssignment?.tenant_id;
+  const platformId = currentAssignment?.platform_id;
 
   const { data: items, isLoading } = useQuery({
     queryKey: [type],
@@ -279,6 +316,25 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
     },
   });
 
+  const { data: inactiveSettings } = useQuery({
+    queryKey: ["tenant_settings", "inactive_items", tenantId],
+    queryFn: async () => {
+      if (!tenantId || !platformId) return {};
+      const { data, error } = await supabase
+        .from("tenant_settings")
+        .select("settings_data")
+        .eq("tenant_id", tenantId)
+        .eq("platform_id", platformId)
+        .eq("setting_key", "inactive_items")
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.settings_data || {}) as Record<string, string[]>;
+    },
+    enabled: hasStandardItems && !!tenantId && !!platformId,
+  });
+
+  const inactiveIds = hasStandardItems ? (inactiveSettings?.[type] || []) : [];
+
   const toggleActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       const { error } = await supabase
@@ -289,6 +345,33 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [type] });
+      toast.success("Estado actualizado");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Error al actualizar estado");
+    },
+  });
+
+  const toggleVisibility = useMutation({
+    mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
+      if (!tenantId || !platformId) throw new Error("Tenant no disponible");
+      const currentInactive = inactiveSettings?.[type] || [];
+      const updatedInactive = visible
+        ? currentInactive.filter(i => i !== id)
+        : [...currentInactive, id];
+
+      const { error } = await supabase
+        .from("tenant_settings")
+        .upsert({
+          tenant_id: tenantId,
+          platform_id: platformId,
+          setting_key: "inactive_items",
+          settings_data: { ...inactiveSettings, [type]: updatedInactive },
+        }, { onConflict: "tenant_id, platform_id, setting_key" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant_settings", "inactive_items", tenantId] });
       toast.success("Estado actualizado");
     },
     onError: (error: any) => {
@@ -311,7 +394,8 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
   };
 
   // Separate standard and custom items for display
-  const standardItems = hasStandardItems ? items?.filter(item => item.is_standard) : [];
+  const allStandardItems = hasStandardItems ? items?.filter(item => item.is_standard) : [];
+  const standardItems = allStandardItems?.filter(item => !inactiveIds.includes(item.id));
   const customItems = hasStandardItems ? items?.filter(item => !item.is_standard) : items;
 
   return (
@@ -384,9 +468,9 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
                     </div>
                     <div className="flex items-center gap-3">
                       <Switch
-                        checked={item.active}
+                        checked={!inactiveIds.includes(item.id)}
                         onCheckedChange={(checked) =>
-                          toggleActive.mutate({ id: item.id, active: checked })
+                          toggleVisibility.mutate({ id: item.id, visible: checked })
                         }
                       />
                       <Button
@@ -395,7 +479,7 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
                         disabled
                         className="opacity-50"
                       >
-                        <Lock className="h-4 w-4" />
+                        <EyeOff className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -468,77 +552,37 @@ export function MasterDataSettings() {
       <div>
         <h2 className="text-xl font-semibold">Datos Maestros</h2>
         <p className="text-muted-foreground">
-          Configura los tipos de documento, cargos y áreas que estarán disponibles en el sistema.
+          Configura los datos maestros del sistema. Los tipos estándar están disponibles para todos los tenants y pueden ocultarse. Puedes agregar tipos personalizados para tu empresa.
         </p>
       </div>
 
-      <Tabs defaultValue="document_types" className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="document_types" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Tipos de Documento
-          </TabsTrigger>
-          <TabsTrigger value="positions" className="flex items-center gap-2">
-            <Briefcase className="h-4 w-4" />
-            Cargos
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="flex items-center gap-2">
+      <Tabs defaultValue="generales" className="space-y-4">
+        <TabsList className="w-fit">
+          <TabsTrigger value="generales" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            Áreas
+            Generales
           </TabsTrigger>
-          <TabsTrigger value="vigilancia_types" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Tipos de Vigilancia
-          </TabsTrigger>
-          <TabsTrigger value="exam_types" className="flex items-center gap-2">
-            <Stethoscope className="h-4 w-4" />
-            Tipos de Examen
-          </TabsTrigger>
-          <TabsTrigger value="course_providers" className="flex items-center gap-2">
-            <GraduationCap className="h-4 w-4" />
-            Proveedores
-          </TabsTrigger>
-          <TabsTrigger value="course_types" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Tipos de Curso
-          </TabsTrigger>
-          <TabsTrigger value="dotacion_types" className="flex items-center gap-2">
-            <HardHat className="h-4 w-4" />
-            Tipos de Dotación
-          </TabsTrigger>
-          <TabsTrigger value="committee_roles" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Roles de Comité
-          </TabsTrigger>
-          <TabsTrigger value="event_types" className="flex items-center gap-2">
-            <CalendarCheck className="h-4 w-4" />
-            Tipos de Evento
-          </TabsTrigger>
-          <TabsTrigger value="evaluation_types" className="flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Tipos de Evaluación
+          <TabsTrigger value="modulos" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Por Módulo
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="document_types">
+        {/* ──────── GENERALES ──────── */}
+        <TabsContent value="generales" className="space-y-6">
           <MasterDataList
             type="document_types"
             title="Tipos de Documento"
-            description="Define los tipos de documento de identificación válidos"
+            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
             icon={<FileText className="h-5 w-5 text-muted-foreground" />}
+            hasStandardItems={true}
           />
-        </TabsContent>
-
-        <TabsContent value="positions">
           <MasterDataList
             type="positions"
             title="Cargos"
             description="Define los cargos disponibles para los empleados"
             icon={<Briefcase className="h-5 w-5 text-muted-foreground" />}
           />
-        </TabsContent>
-
-        <TabsContent value="departments">
           <MasterDataList
             type="departments"
             title="Áreas"
@@ -547,84 +591,144 @@ export function MasterDataSettings() {
           />
         </TabsContent>
 
-        <TabsContent value="vigilancia_types">
-          <MasterDataList
-            type="vigilancia_types"
-            title="Tipos de Vigilancia"
-            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
-            icon={<Activity className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+        {/* ──────── POR MÓDULO ──────── */}
+        <TabsContent value="modulos">
+          <Tabs defaultValue="vigilancia_types" className="space-y-4">
+            <TabsList className="flex-wrap h-auto gap-1">
+              <TabsTrigger value="vigilancia_types" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Vigilancias
+              </TabsTrigger>
+              <TabsTrigger value="exam_types" className="flex items-center gap-2">
+                <Stethoscope className="h-4 w-4" />
+                Exámenes
+              </TabsTrigger>
+              <TabsTrigger value="course_providers" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />
+                Cursos
+              </TabsTrigger>
+              <TabsTrigger value="dotacion_types" className="flex items-center gap-2">
+                <HardHat className="h-4 w-4" />
+                Dotación
+              </TabsTrigger>
+              <TabsTrigger value="committee_roles" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Comités
+              </TabsTrigger>
+              <TabsTrigger value="event_types" className="flex items-center gap-2">
+                <CalendarCheck className="h-4 w-4" />
+                Eventos
+              </TabsTrigger>
+              <TabsTrigger value="evaluation_types" className="flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Evaluaciones
+              </TabsTrigger>
+              <TabsTrigger value="activos_fijos" className="flex items-center gap-2">
+                <Monitor className="h-4 w-4" />
+                Activos Fijos
+              </TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="exam_types">
-          <MasterDataList
-            type="exam_types"
-            title="Tipos de Examen"
-            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
-            icon={<Stethoscope className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+            <TabsContent value="vigilancia_types">
+              <MasterDataList
+                type="vigilancia_types"
+                title="Tipos de Vigilancia"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<Activity className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
 
-        <TabsContent value="course_providers">
-          <MasterDataList
-            type={"course_providers" as MasterDataType}
-            title="Proveedores de Cursos"
-            description="Los proveedores estándar están disponibles para todos. Puedes agregar proveedores personalizados."
-            icon={<GraduationCap className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+            <TabsContent value="exam_types">
+              <MasterDataList
+                type="exam_types"
+                title="Tipos de Examen"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<Stethoscope className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
 
-        <TabsContent value="course_types">
-          <MasterDataList
-            type={"course_types" as MasterDataType}
-            title="Tipos de Curso"
-            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
-            icon={<BookOpen className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+            <TabsContent value="course_providers" className="space-y-6">
+              <MasterDataList
+                type={"course_providers" as MasterDataType}
+                title="Proveedores de Cursos"
+                description="Los proveedores estándar están disponibles para todos. Puedes agregar proveedores personalizados."
+                icon={<GraduationCap className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+              <MasterDataList
+                type={"course_types" as MasterDataType}
+                title="Tipos de Curso"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<BookOpen className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
 
-        <TabsContent value="dotacion_types">
-          <MasterDataList
-            type={"dotacion_types" as MasterDataType}
-            title="Tipos de Dotación"
-            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
-            icon={<HardHat className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+            <TabsContent value="dotacion_types">
+              <MasterDataList
+                type={"dotacion_types" as MasterDataType}
+                title="Tipos de Dotación"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<HardHat className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
 
-        <TabsContent value="committee_roles">
-          <MasterDataList
-            type={"committee_roles" as MasterDataType}
-            title="Roles de Comité"
-            description="Los roles estándar están disponibles para todos. Puedes agregar roles personalizados."
-            icon={<Users className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+            <TabsContent value="committee_roles">
+              <MasterDataList
+                type={"committee_roles" as MasterDataType}
+                title="Roles de Comité"
+                description="Los roles estándar están disponibles para todos. Puedes agregar roles personalizados."
+                icon={<Users className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
 
-        <TabsContent value="event_types">
-          <MasterDataList
-            type={"event_types" as MasterDataType}
-            title="Tipos de Evento"
-            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
-            icon={<CalendarCheck className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
-        </TabsContent>
+            <TabsContent value="event_types">
+              <MasterDataList
+                type={"event_types" as MasterDataType}
+                title="Tipos de Evento"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<CalendarCheck className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
 
-        <TabsContent value="evaluation_types">
-          <MasterDataList
-            type={"evaluation_types" as MasterDataType}
-            title="Tipos de Evaluación"
-            description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
-            icon={<ClipboardCheck className="h-5 w-5 text-muted-foreground" />}
-            hasStandardItems={true}
-          />
+            <TabsContent value="evaluation_types">
+              <MasterDataList
+                type={"evaluation_types" as MasterDataType}
+                title="Tipos de Evaluación"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<ClipboardCheck className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
+
+            <TabsContent value="activos_fijos" className="space-y-6">
+              <MasterDataList
+                type={"activo_fijo_tipos" as MasterDataType}
+                title="Tipos de Activo Fijo"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<Package className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+              <MasterDataList
+                type={"activo_fijo_estados" as MasterDataType}
+                title="Estados de Activo Fijo"
+                description="Los estados estándar están disponibles para todos. Puedes agregar estados personalizados."
+                icon={<Wrench className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+              <MasterDataList
+                type={"activo_fijo_marcas" as MasterDataType}
+                title="Marcas de Activo Fijo"
+                description="Gestiona las marcas disponibles para los activos fijos."
+                icon={<Monitor className="h-5 w-5 text-muted-foreground" />}
+              />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>

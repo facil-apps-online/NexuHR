@@ -25,7 +25,10 @@ export function MapDisplay({ latitude, longitude }: MapDisplayProps) {
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-  }, []);
+    if (latitude && longitude) {
+      map.panTo({ lat: latitude, lng: longitude });
+    }
+  }, [latitude, longitude]);
 
   const onUnmount = useCallback(() => {
     mapRef.current = null;

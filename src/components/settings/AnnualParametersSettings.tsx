@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export function AnnualParametersSettings() {
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { currentAssignment } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [year, setYear] = useState(new Date().getFullYear().toString());
@@ -39,7 +39,7 @@ export function AnnualParametersSettings() {
   const mutation = useMutation({
     mutationFn: async () => {
       const record = {
-        tenant_id: profile?.tenant_id!,
+        tenant_id: currentAssignment?.tenant_id!,
         year: parseInt(year),
         minimum_wage: parseFloat(minimumWage) || 0,
         transport_allowance: parseFloat(transportAllowance) || 0,

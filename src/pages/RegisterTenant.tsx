@@ -260,11 +260,11 @@ export default function RegisterTenant() {
     form.setValue('physical_state', get('administrative_area_level_1'));
     form.setValue('physical_postal_code', get('postal_code'));
     if (place.geometry?.location) {
-      form.setValue('latitude', place.geometry.location.lat());
-      form.setValue('longitude', place.geometry.location.lng());
+      form.setValue('latitude', place.geometry.location.lat(), { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+      form.setValue('longitude', place.geometry.location.lng(), { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     }
     if (place.formatted_address) {
-      form.setValue('formatted_address', place.formatted_address);
+      form.setValue('formatted_address', place.formatted_address, { shouldValidate: true });
     }
     const countryIso = place.address_components?.find(c => c.types.includes('country'))?.short_name;
     if (countryIso && publicData?.countries) {
@@ -372,10 +372,10 @@ export default function RegisterTenant() {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen w-full bg-brand-primary lg:h-screen lg:grid lg:grid-cols-2 lg:overflow-hidden"
+      className="min-h-screen w-full bg-gradient-to-br from-primary to-teal-900 lg:h-screen lg:grid lg:grid-cols-2 lg:overflow-hidden"
     >
       {/* Columna Izquierda - Panel de Bienvenida */}
-      <div className="hidden lg:absolute lg:left-0 lg:top-0 lg:w-1/2 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center p-10 text-white">
+      <div className="hidden lg:absolute lg:left-0 lg:top-0 lg:w-1/2 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center p-10 text-white bg-gradient-to-br from-primary to-teal-900">
         <img src={Logo} alt="NexuHR Logo" className="w-48 h-48 mb-6" />
         <h1 className="text-4xl font-bold text-center">Crea tu Espacio en NexuHR</h1>
         <p className="mt-4 text-lg text-center text-gray-300">Únete a nuestra plataforma y lleva la gestión de recursos humanos al siguiente nivel.</p>
@@ -456,8 +456,8 @@ export default function RegisterTenant() {
                     )}
                   </div>
 
-                  <div className="p-4 border rounded-lg bg-blue-50">
-                    <h3 className="text-lg font-semibold mb-4">Crea tu Cuenta de Administrador</h3>
+                  <div className="p-4 border rounded-lg bg-primary/10 border-primary/20">
+                    <h3 className="text-lg font-semibold mb-4 text-primary">Crea tu Cuenta de Administrador</h3>
                     <p className="text-sm text-muted-foreground mb-4">Estos serán tus datos para iniciar sesión en la plataforma.</p>
                     <div className="mb-6">
                         <FormField control={form.control} name="admin_email" render={({ field }) => (<FormItem><FormLabel>Email de Administrador</FormLabel><FormControl><Input type="email" {...field} autoComplete="off" /></FormControl><FormMessage /></FormItem>)} />
@@ -497,7 +497,7 @@ export default function RegisterTenant() {
                 </CardContent>
                 <CardFooter className="flex justify-center text-sm mt-6">
                   <p>¿Ya tienes una cuenta?&nbsp;
-                    <Link to="/auth" className="font-semibold text-brand-primary hover:underline">
+                    <Link to="/auth" className="font-semibold text-primary hover:underline">
                       Inicia Sesión Aquí
                     </Link>
                   </p>

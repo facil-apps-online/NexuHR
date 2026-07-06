@@ -3,14 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import { Search, UserPlus, Filter, MoreVertical, Loader2, List, Network, Upload, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
@@ -149,6 +142,49 @@ export default function Empleados() {
     ? employees?.find((e) => e.id === editingEmployee)
     : null;
 
+  const employeeColumns: ResponsiveColumn<typeof filteredEmployees extends (infer U)[] | undefined ? U : never>[] = [
+    {
+      key: "name",
+      label: "Nombre",
+      primary: true,
+      render: (emp) => (
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+            {emp.first_name?.[0]}{emp.last_name?.[0]}
+          </div>
+          {emp.first_name} {emp.last_name}
+        </div>
+      ),
+    },
+    {
+      key: "document",
+      label: "Documento",
+      subtitle: true,
+      render: (emp) => `${emp.document_type} ${emp.document_number}`,
+    },
+    {
+      key: "position",
+      label: "Cargo",
+      render: (emp) => emp.position || "-",
+    },
+    {
+      key: "department",
+      label: "Área",
+      render: (emp) => emp.department || "-",
+      hideOnMobile: true,
+    },
+    {
+      key: "status",
+      label: "Estado",
+      render: (emp) =>
+        emp.active ? (
+          <Badge className="bg-success/10 text-success border-success/20">Activo</Badge>
+        ) : (
+          <Badge className="bg-muted text-muted-foreground">Inactivo</Badge>
+        ),
+    },
+  ];
+
   const exportToExcel = () => {
     const dataToExport = filteredEmployees || employees || [];
     
@@ -259,88 +295,34 @@ export default function Empleados() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Área</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees && filteredEmployees.length > 0 ? (
-                  filteredEmployees.map((employee) => (
-                    <TableRow 
-                      key={employee.id} 
-                      className="hover:bg-muted/30 cursor-pointer"
-                      onClick={() => navigate(`/empleados/${employee.id}`)}
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                            {employee.first_name?.[0]}{employee.last_name?.[0]}
-                          </div>
-                          {employee.first_name} {employee.last_name}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {employee.document_type} {employee.document_number}
-                      </TableCell>
-                      <TableCell>{employee.position || "-"}</TableCell>
-                      <TableCell>{employee.department || "-"}</TableCell>
-                      <TableCell>
-                        {employee.active ? (
-                          <Badge className="bg-success/10 text-success border-success/20">Activo</Badge>
-                        ) : (
-                          <Badge className="bg-muted text-muted-foreground">Inactivo</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/empleados/${employee.id}`);
-                            }}>
-                              Ver perfil
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingEmployee(employee.id);
-                            }}>
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                              Historial
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Desactivar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      {searchTerm ? "No se encontraron empleados con ese criterio" : "No hay empleados registrados"}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <ResponsiveTable
+              columns={employeeColumns}
+              data={filteredEmployees || []}
+              getKey={(emp) => emp.id}
+              onRowClick={(emp) => navigate(`/empleados/${emp.id}`)}
+              actions={(emp) => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => navigate(`/empleados/${emp.id}`)}>
+                      Ver perfil
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setEditingEmployee(emp.id)}>
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>Historial</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      Desactivar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              emptyMessage={searchTerm ? "No se encontraron empleados con ese criterio" : "No hay empleados registrados"}
+            />
           )}
         </div>
           </TabsContent>
@@ -353,7 +335,7 @@ export default function Empleados() {
 
       {/* Dialog para crear empleado */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nuevo Empleado</DialogTitle>
           </DialogHeader>
@@ -369,7 +351,7 @@ export default function Empleados() {
 
       {/* Dialog para editar empleado */}
       <Dialog open={!!editingEmployee} onOpenChange={(open) => !open && setEditingEmployee(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Empleado</DialogTitle>
           </DialogHeader>

@@ -1,13 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ResponsiveTable,
+  ResponsiveColumn,
+} from "@/components/ui/responsive-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,85 +44,89 @@ const formatDate = (date: string | null) => {
 };
 
 export function VigilanciasTable({ vigilancias, onViewDetails, onEdit, onDelete, onChangeStatus }: Props) {
-  if (vigilancias.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-        <p className="text-lg font-medium">No hay vigilancias registradas</p>
-        <p className="text-sm">Cree una nueva vigilancia para comenzar</p>
-      </div>
-    );
-  }
+  const columns: ResponsiveColumn<VigilanciaWithEmployee>[] = [
+    {
+      key: "employee",
+      label: "Empleado",
+      primary: true,
+      subtitle: true,
+      render: (v) => v.employees ? `${v.employees.first_name} ${v.employees.last_name}` : "-",
+    },
+    {
+      key: "type",
+      label: "Tipo",
+      render: (v) => v.vigilancia_type,
+    },
+    {
+      key: "diagnosis",
+      label: "Diagnóstico",
+      render: (v) => v.diagnosis || "-",
+    },
+    {
+      key: "startDate",
+      label: "Fecha Inicio",
+      render: (v) => formatDate(v.start_date),
+    },
+    {
+      key: "followUp",
+      label: "Próximo Seguimiento",
+      hideOnMobile: true,
+      render: (v) => formatDate(v.follow_up_date),
+    },
+    {
+      key: "status",
+      label: "Estado",
+      render: (v) => statusBadge[v.status || "activa"],
+    },
+  ];
+
+  const actions = (v: VigilanciaWithEmployee) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onViewDetails(v)}>
+          <Eye className="mr-2 h-4 w-4" />
+          Ver detalles
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEdit(v)}>
+          <Edit className="mr-2 h-4 w-4" />
+          Editar
+        </DropdownMenuItem>
+        {v.status === "activa" && (
+          <DropdownMenuItem onClick={() => onChangeStatus(v, "inactiva")}>
+            <XCircle className="mr-2 h-4 w-4" />
+            Marcar inactiva
+          </DropdownMenuItem>
+        )}
+        {v.status !== "activa" && (
+          <DropdownMenuItem onClick={() => onChangeStatus(v, "activa")}>
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Reactivar
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => onDelete(v)}
+          className="text-destructive focus:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Eliminar
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Empleado</TableHead>
-            <TableHead>Tipo de Vigilancia</TableHead>
-            <TableHead>Diagnóstico</TableHead>
-            <TableHead>Fecha Inicio</TableHead>
-            <TableHead>Próximo Seguimiento</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="w-12"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {vigilancias.map((vig) => (
-            <TableRow key={vig.id}>
-              <TableCell className="font-medium">
-                {vig.employees
-                  ? `${vig.employees.first_name} ${vig.employees.last_name}`
-                  : "-"}
-              </TableCell>
-              <TableCell>{vig.vigilancia_type}</TableCell>
-              <TableCell>{vig.diagnosis || "-"}</TableCell>
-              <TableCell>{formatDate(vig.start_date)}</TableCell>
-              <TableCell>{formatDate(vig.follow_up_date)}</TableCell>
-              <TableCell>{statusBadge[vig.status || "activa"]}</TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onViewDetails(vig)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver detalles
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit(vig)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Editar
-                    </DropdownMenuItem>
-                    {vig.status === "activa" && (
-                      <DropdownMenuItem onClick={() => onChangeStatus(vig, "inactiva")}>
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Marcar inactiva
-                      </DropdownMenuItem>
-                    )}
-                    {vig.status !== "activa" && (
-                      <DropdownMenuItem onClick={() => onChangeStatus(vig, "activa")}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Reactivar
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => onDelete(vig)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <ResponsiveTable
+      columns={columns}
+      data={vigilancias}
+      getKey={(v) => v.id}
+      actions={actions}
+      emptyMessage="No hay vigilancias registradas"
+    />
   );
 }

@@ -19,11 +19,11 @@ interface UsePermissionsReturn {
 }
 
 export function usePermissions(): UsePermissionsReturn {
-  const { user, profile } = useAuth();
+  const { user, profile, currentAssignment } = useAuth();
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isSuperAdmin = profile?.is_super_admin ?? false;
+  const isSuperAdmin = profile?.is_super_admin || currentAssignment?.role_name === 'Administrador' || currentAssignment?.role_name === 'tenant_super_admin' || false;
 
   const fetchPermissions = useCallback(async () => {
     if (!user) {

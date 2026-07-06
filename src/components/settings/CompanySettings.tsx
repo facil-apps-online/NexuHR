@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Save, Loader2, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { coreSupabase } from "@/lib/supabaseClient";
+import { useGoogleDriveImage } from "@/hooks/useGoogleDriveImage";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Json } from "@/integrations/supabase/types";
@@ -33,8 +35,17 @@ interface Tenant {
   notes: string | null;
 }
 
+const readFileAsBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
 export function CompanySettings() {
-  const { profile } = useAuth();
+  const { profile, tenantId } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -51,19 +62,21 @@ export function CompanySettings() {
   });
 
   const { data: tenant, isLoading } = useQuery({
-    queryKey: ["tenant", profile?.tenant_id],
+    queryKey: ["tenant", tenantId],
     queryFn: async () => {
-      if (!profile?.tenant_id) return null;
+      if (!tenantId) return null;
       const { data, error } = await supabase
         .from("tenants")
         .select("id, name, logo_url, tax_id, physical_address_line1, contact_phone, physical_city, physical_state, website, notes")
-        .eq("id", profile.tenant_id)
+        .eq("id", tenantId)
         .single();
       if (error) throw error;
       return data as Tenant;
     },
-    enabled: !!profile?.tenant_id,
+    enabled: !!tenantId,
   });
+
+  const { displayUrl: logoDisplayUrl } = useGoogleDriveImage(tenant?.logo_url || undefined);
 
   useEffect(() => {
     if (tenant) {
@@ -82,7 +95,7 @@ export function CompanySettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (!profile?.tenant_id) throw new Error("No tenant found");
+      if (!tenantId) throw new Error("No tenant found");
       const { error } = await supabase
         .from("tenants")
         .update({ 
@@ -96,22 +109,22 @@ export function CompanySettings() {
           website: data.website,
           updated_at: new Date().toISOString() 
         })
-        .eq("id", profile.tenant_id);
+        .eq("id", tenantId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant"] });
-      toast.success("Información de la empresa actualizada");
+      toast.success("Información guardada correctamente");
     },
     onError: (error) => {
-      console.error("Error updating company:", error);
-      toast.error("Error al guardar los cambios");
+      console.error(error);
+      toast.error("Error al guardar la información");
     },
   });
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !profile?.tenant_id) return;
+    if (!file || !tenantId) return;
 
     if (!file.type.startsWith("image/")) {
       toast.error("Solo se permiten archivos de imagen");
@@ -125,19 +138,27 @@ export function CompanySettings() {
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
-      const path = `${profile.tenant_id}/logo.${ext}`;
+      const base64data = await readFileAsBase64(file);
 
-      const { error: uploadError } = await supabase.storage
-        .from("company-logos")
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
+      const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+        body: {
+          platform_id: import.meta.env.VITE_PLATFORM_ID,
+          tenantId: tenantId,
+          fileName: `logo_${tenantId}.${ext}`,
+          fileBase64: base64data,
+          mimeType: file.type,
+          path_components: ['logos']
+        }
+      });
 
-      const { data: urlData } = supabase.storage.from("company-logos").getPublicUrl(path);
+      if (uploadError || !uploadData.success) throw new Error(uploadError?.message || uploadData.error || "Error al subir logo");
+
+      const fileId = uploadData.fileId;
 
       const { error: updateError } = await supabase
         .from("tenants")
-        .update({ logo_url: urlData.publicUrl, updated_at: new Date().toISOString() })
-        .eq("id", profile.tenant_id);
+        .update({ logo_url: fileId, updated_at: new Date().toISOString() })
+        .eq("id", tenantId);
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ["tenant"] });
@@ -152,9 +173,17 @@ export function CompanySettings() {
   };
 
   const removeLogo = async () => {
-    if (!profile?.tenant_id) return;
+    if (!tenantId) return;
     try {
-      await supabase.from("tenants").update({ logo_url: null, updated_at: new Date().toISOString() }).eq("id", profile.tenant_id);
+      if (tenant?.logo_url && !tenant.logo_url.startsWith('http')) {
+        await coreSupabase.functions.invoke('google-drive-delete', {
+          body: {
+            fileId: tenant.logo_url,
+            platform_id: import.meta.env.VITE_PLATFORM_ID
+          }
+        });
+      }
+      await supabase.from("tenants").update({ logo_url: null, updated_at: new Date().toISOString() }).eq("id", tenantId);
       queryClient.invalidateQueries({ queryKey: ["tenant"] });
       toast.success("Logo eliminado");
     } catch {
@@ -181,7 +210,7 @@ export function CompanySettings() {
     );
   }
 
-  if (!profile?.tenant_id) {
+  if (!tenantId) {
     return (
       <Card>
         <CardContent className="py-12 text-center text-muted-foreground">
@@ -201,10 +230,10 @@ export function CompanySettings() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-6">
-            {tenant?.logo_url ? (
+            {tenant?.logo_url && logoDisplayUrl ? (
               <div className="relative group">
                 <img
-                  src={tenant.logo_url}
+                  src={logoDisplayUrl}
                   alt="Logo de la empresa"
                   className="h-24 w-24 object-contain rounded-lg border bg-background p-2"
                 />

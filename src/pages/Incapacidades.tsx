@@ -4,9 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -95,6 +93,46 @@ export default function Incapacidades() {
     window.open(data.signedUrl, '_blank');
   };
 
+  const columns: ResponsiveColumn<any>[] = [
+    {
+      key: "employee",
+      label: "Empleado",
+      primary: true,
+      subtitle: true,
+      render: (i: any) => (
+        <>
+          {i.employees?.first_name} {i.employees?.last_name}
+          <p className="text-xs text-muted-foreground">{i.employees?.document_number}</p>
+        </>
+      ),
+    },
+    {
+      key: "type",
+      label: "Tipo",
+      render: (i: any) => <span className="capitalize">{i.tipo.replace(/_/g, ' ')}</span>,
+    },
+    {
+      key: "start",
+      label: "Inicio",
+      render: (i: any) => format(new Date(i.fecha_inicio), 'dd/MM/yyyy'),
+    },
+    {
+      key: "end",
+      label: "Fin",
+      render: (i: any) => format(new Date(i.fecha_fin), 'dd/MM/yyyy'),
+    },
+    { key: "days", label: "Días", render: (i: any) => i.dias },
+    { key: "entity", label: "Entidad", hideOnMobile: true, render: (i: any) => i.entidad ?? '-' },
+    { key: "status", label: "Estado", render: (i: any) => estadoBadge[i.estado] },
+    {
+      key: "origin",
+      label: "Origen",
+      hideOnMobile: true,
+      render: (i: any) =>
+        i.origen === 'portal_empleado' ? <Badge variant="outline">Empleado</Badge> : <Badge variant="outline">Admin</Badge>,
+    },
+  ];
+
   return (
     <MainLayout>
       <div className="animate-fade-in space-y-6">
@@ -148,69 +186,39 @@ export default function Incapacidades() {
         <div className="rounded-xl border bg-card shadow-card">
           {isLoading ? (
             <div className="p-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-          ) : filtered.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">No hay incapacidades</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empleado</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Inicio</TableHead>
-                  <TableHead>Fin</TableHead>
-                  <TableHead>Días</TableHead>
-                  <TableHead>Entidad</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Origen</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((i: any) => (
-                  <TableRow key={i.id}>
-                    <TableCell className="font-medium">
-                      {i.employees?.first_name} {i.employees?.last_name}
-                      <p className="text-xs text-muted-foreground">{i.employees?.document_number}</p>
-                    </TableCell>
-                    <TableCell className="capitalize">{i.tipo.replace(/_/g, ' ')}</TableCell>
-                    <TableCell>{format(new Date(i.fecha_inicio), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>{format(new Date(i.fecha_fin), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>{i.dias}</TableCell>
-                    <TableCell>{i.entidad ?? '-'}</TableCell>
-                    <TableCell>{estadoBadge[i.estado]}</TableCell>
-                    <TableCell>
-                      {i.origen === 'portal_empleado' ? <Badge variant="outline">Empleado</Badge> : <Badge variant="outline">Admin</Badge>}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setSelected(i); setShowForm(true); }}>
-                            <Edit className="h-4 w-4 mr-2" /> Editar
-                          </DropdownMenuItem>
-                          {i.documento_url && (
-                            <DropdownMenuItem onClick={() => handleDownload(i.documento_url)}>
-                              <Download className="h-4 w-4 mr-2" /> Descargar documento
-                            </DropdownMenuItem>
-                          )}
-                          {i.estado !== 'transcrita_nomina' && (
-                            <DropdownMenuItem onClick={() => transcribir.mutate(i.id)}>
-                              <Calendar className="h-4 w-4 mr-2" /> Marcar transcrita a nómina
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => { setSelected(i); setShowDelete(true); }} className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ResponsiveTable
+              columns={columns}
+              data={filtered}
+              getKey={(i: any) => i.id}
+              emptyMessage="No hay incapacidades"
+              actions={(i: any) => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => { setSelected(i); setShowForm(true); }}>
+                      <Edit className="h-4 w-4 mr-2" /> Editar
+                    </DropdownMenuItem>
+                    {i.documento_url && (
+                      <DropdownMenuItem onClick={() => handleDownload(i.documento_url)}>
+                        <Download className="h-4 w-4 mr-2" /> Descargar documento
+                      </DropdownMenuItem>
+                    )}
+                    {i.estado !== 'transcrita_nomina' && (
+                      <DropdownMenuItem onClick={() => transcribir.mutate(i.id)}>
+                        <Calendar className="h-4 w-4 mr-2" /> Marcar transcrita a nómina
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => { setSelected(i); setShowDelete(true); }} className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            />
           )}
         </div>
       </div>

@@ -1,6 +1,5 @@
-import { Bell, Search, User, LogOut, Check, CheckCheck } from "lucide-react";
+import { Bell, LogOut, CheckCheck, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,14 +13,20 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useGoogleDriveImage } from "@/hooks/useGoogleDriveImage";
+import { useSidebarState } from "./MainLayout";
+import { GlobalSearch } from "./GlobalSearch";
 
 export function Header() {
-  const { user, signOut } = useAuth();
+  const { user, profile, logout } = useAuth();
+  const { isMobileOpen, setIsMobileOpen } = useSidebarState();
   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { displayUrl: avatarDisplayUrl } = useGoogleDriveImage(profile?.avatarUrl);
 
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     navigate("/auth");
   };
 
@@ -34,21 +39,27 @@ export function Header() {
     }
   };
 
+  // Clean up email to avoid showing synthetic prefixes (UUID_)
+  const displayEmail = profile?.realEmail || user?.email?.replace(/^[0-9a-fA-F-]{36}_/, "") || "";
+
   // Get display name from user metadata or email
-  const displayName = user?.user_metadata?.first_name 
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ""}`
-    : user?.email?.split("@")[0] || "Usuario";
+  const displayName = profile?.firstName 
+    ? `${profile.firstName} ${profile.lastName || ""}`
+    : displayEmail.split("@")[0] || "Usuario";
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-sm">
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar empleados, documentos..."
-            className="w-80 pl-10"
-          />
-        </div>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-4 md:px-6 backdrop-blur-sm">
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Mobile menu toggle */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="md:hidden"
+          onClick={() => setIsMobileOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-3">
@@ -134,19 +145,22 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <User className="h-4 w-4" />
-              </div>
+              <Avatar className="h-8 w-8 border bg-primary/10">
+                <AvatarImage src={avatarDisplayUrl || undefined} alt={displayName} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                  {displayName.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div className="hidden text-left md:block">
                 <p className="text-sm font-medium">{displayName}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">{displayEmail}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/configuracion")}>
+            <DropdownMenuItem onClick={() => navigate("/perfil")}>
               Perfil
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/configuracion")}>

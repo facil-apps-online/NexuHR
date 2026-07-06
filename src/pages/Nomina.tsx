@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -285,36 +283,23 @@ export default function Nomina() {
                     <FileX className="h-12 w-12 mb-2" /><p>No hay registros de nómina</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Empleado</TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead className="text-right">Devengado</TableHead>
-                        <TableHead className="text-right">Deducciones</TableHead>
-                        <TableHead className="text-right">Neto</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPayroll.map((r: any) => (
-                        <TableRow key={`${r.employee_id}__${r.period_id}`}>
-                          <TableCell className="font-medium">
-                            {r.employee?.first_name} {r.employee?.last_name}
-                          </TableCell>
-                          <TableCell>{r.period?.name || "—"}</TableCell>
-                          <TableCell className="text-right text-success">{formatCurrency(r.totalDev)}</TableCell>
-                          <TableCell className="text-right text-destructive">{formatCurrency(r.totalDed)}</TableCell>
-                          <TableCell className="text-right font-bold">{formatCurrency(r.totalDev - r.totalDed)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedPayslip({ employeeId: r.employee_id, periodId: r.period_id })}>
-                              Desprendible
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ResponsiveTable
+                    data={filteredPayroll || []}
+                    getKey={(r: any) => `${r.employee_id}__${r.period_id}`}
+                    emptyMessage="No hay registros de nómina"
+                    actions={(r: any) => (
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedPayslip({ employeeId: r.employee_id, periodId: r.period_id })}>
+                        Desprendible
+                      </Button>
+                    )}
+                    columns={[
+                      { key: "employee", label: "Empleado", primary: true, render: (r: any) => `${r.employee?.first_name} ${r.employee?.last_name}` },
+                      { key: "period", label: "Período", subtitle: true, render: (r: any) => r.period?.name || "—" },
+                      { key: "devengado", label: "Devengado", className: "text-right text-success", headerClassName: "text-right", render: (r: any) => formatCurrency(r.totalDev) },
+                      { key: "deducciones", label: "Deducciones", className: "text-right text-destructive", headerClassName: "text-right", render: (r: any) => formatCurrency(r.totalDed) },
+                      { key: "neto", label: "Neto", className: "text-right font-bold", headerClassName: "text-right", render: (r: any) => formatCurrency(r.totalDev - r.totalDed) },
+                    ] as ResponsiveColumn<any>[]}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -331,38 +316,27 @@ export default function Nomina() {
                     <p className="text-sm mt-1">Crea un período antes de cargar registros de nómina</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Frecuencia</TableHead>
-                        <TableHead>Inicio</TableHead>
-                        <TableHead>Fin</TableHead>
-                        <TableHead>Fecha Pago</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {periods.map((p: any) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.name}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {p.frequency === "mensual" ? "Mensual" : p.frequency === "quincenal" ? "Quincenal" : "Semanal"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{format(new Date(p.start_date), "d MMM yyyy", { locale: es })}</TableCell>
-                          <TableCell>{format(new Date(p.end_date), "d MMM yyyy", { locale: es })}</TableCell>
-                          <TableCell>{p.payment_date ? format(new Date(p.payment_date), "d MMM yyyy", { locale: es }) : "—"}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={periodStatusColor[p.status] || ""}>
-                              {p.status === "abierto" ? "Abierto" : "Cerrado"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ResponsiveTable
+                    data={periods || []}
+                    getKey={(p: any) => p.id}
+                    emptyMessage="No hay períodos creados"
+                    columns={[
+                      { key: "name", label: "Nombre", primary: true, render: (p: any) => p.name },
+                      { key: "frequency", label: "Frecuencia", render: (p: any) => (
+                        <Badge variant="outline">
+                          {p.frequency === "mensual" ? "Mensual" : p.frequency === "quincenal" ? "Quincenal" : "Semanal"}
+                        </Badge>
+                      )},
+                      { key: "startDate", label: "Inicio", render: (p: any) => format(new Date(p.start_date), "d MMM yyyy", { locale: es }) },
+                      { key: "endDate", label: "Fin", render: (p: any) => format(new Date(p.end_date), "d MMM yyyy", { locale: es }) },
+                      { key: "paymentDate", label: "Fecha Pago", hideOnMobile: true, render: (p: any) => p.payment_date ? format(new Date(p.payment_date), "d MMM yyyy", { locale: es }) : "—" },
+                      { key: "status", label: "Estado", render: (p: any) => (
+                        <Badge variant="outline" className={periodStatusColor[p.status] || ""}>
+                          {p.status === "abierto" ? "Abierto" : "Cerrado"}
+                        </Badge>
+                      )},
+                    ] as ResponsiveColumn<any>[]}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -378,44 +352,29 @@ export default function Nomina() {
                     <FileX className="h-12 w-12 mb-2" /><p>No hay contratos registrados</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Empleado</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Inicio</TableHead>
-                        <TableHead>Fin</TableHead>
-                        <TableHead className="text-right">Salario Base</TableHead>
-                        <TableHead>Frecuencia</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contracts.map((c: any) => (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">
-                            {c.employees?.first_name} {c.employees?.last_name}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {c.contract_type === "indefinido" ? "Indefinido" :
-                                c.contract_type === "fijo" ? "Fijo" :
-                                c.contract_type === "obra_labor" ? "Obra/Labor" : c.contract_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{format(new Date(c.start_date), "d MMM yyyy", { locale: es })}</TableCell>
-                          <TableCell>{c.end_date ? format(new Date(c.end_date), "d MMM yyyy", { locale: es }) : "—"}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(c.base_salary)}</TableCell>
-                          <TableCell>{c.payment_frequency === "mensual" ? "Mensual" : c.payment_frequency === "quincenal" ? "Quincenal" : c.payment_frequency}</TableCell>
-                          <TableCell>
-                            <Badge variant={c.active ? "default" : "secondary"}>
-                              {c.active ? "Activo" : "Inactivo"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ResponsiveTable
+                    data={contracts || []}
+                    getKey={(c: any) => c.id}
+                    emptyMessage="No hay contratos registrados"
+                    columns={[
+                      { key: "employee", label: "Empleado", primary: true, render: (c: any) => `${c.employees?.first_name} ${c.employees?.last_name}` },
+                      { key: "type", label: "Tipo", subtitle: true, render: (c: any) => (
+                        <Badge variant="outline">
+                          {c.contract_type === "indefinido" ? "Indefinido" :
+                            c.contract_type === "fijo" ? "Fijo" :
+                            c.contract_type === "obra_labor" ? "Obra/Labor" : c.contract_type}
+                        </Badge>
+                      )},
+                      { key: "startDate", label: "Inicio", render: (c: any) => format(new Date(c.start_date), "d MMM yyyy", { locale: es }) },
+                      { key: "salary", label: "Salario Base", className: "text-right font-medium", headerClassName: "text-right", render: (c: any) => formatCurrency(c.base_salary) },
+                      { key: "frequency", label: "Frecuencia", hideOnMobile: true, render: (c: any) => c.payment_frequency === "mensual" ? "Mensual" : c.payment_frequency === "quincenal" ? "Quincenal" : c.payment_frequency },
+                      { key: "status", label: "Estado", render: (c: any) => (
+                        <Badge variant={c.active ? "default" : "secondary"}>
+                          {c.active ? "Activo" : "Inactivo"}
+                        </Badge>
+                      )},
+                    ] as ResponsiveColumn<any>[]}
+                  />
                 )}
               </CardContent>
             </Card>

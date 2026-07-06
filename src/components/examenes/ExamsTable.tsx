@@ -3,14 +3,6 @@ import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,6 +19,7 @@ import {
   Send,
   ExternalLink,
 } from "lucide-react";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface ExamWithEmployee extends Tables<"exams"> {
@@ -100,123 +93,126 @@ export function ExamsTable({
     return vigilanciaResults.includes(result);
   };
 
+  const columns: ResponsiveColumn<ExamWithEmployee>[] = [
+    {
+      key: "employee",
+      label: "Empleado",
+      primary: true,
+      subtitle: true,
+      render: (exam) =>
+        exam.employees
+          ? `${exam.employees.first_name} ${exam.employees.last_name}`
+          : "Sin asignar",
+    },
+    {
+      key: "type",
+      label: "Tipo",
+      render: (exam) => (
+        <Badge className={typeBadge[exam.exam_type] || typeBadge["Periódico"]}>
+          {exam.exam_type}
+        </Badge>
+      ),
+    },
+    {
+      key: "entity",
+      label: "Entidad",
+      render: (exam) => (
+        <span className="text-muted-foreground">{exam.entity || "-"}</span>
+      ),
+    },
+    {
+      key: "date",
+      label: "Fecha",
+      render: (exam) => formatDate(exam.scheduled_date || exam.exam_date),
+    },
+    {
+      key: "status",
+      label: "Estado",
+      render: (exam) => statusBadge[exam.status || "pendiente"],
+    },
+    {
+      key: "result",
+      label: "Resultado",
+      hideOnMobile: true,
+      render: (exam) =>
+        exam.result ? (
+          <span className="font-medium">{exam.result}</span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+    },
+  ];
+
+  const actions = (exam: ExamWithEmployee) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onViewDetails(exam)}>
+          <Eye className="mr-2 h-4 w-4" />
+          Ver detalles
+        </DropdownMenuItem>
+        {exam.status !== "vigente" && (
+          <DropdownMenuItem onClick={() => onEdit(exam)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </DropdownMenuItem>
+        )}
+        {!exam.result && exam.status !== "vigente" && (
+          <DropdownMenuItem onClick={() => onAddResult(exam)}>
+            <FileText className="mr-2 h-4 w-4" />
+            Registrar resultado
+          </DropdownMenuItem>
+        )}
+        {exam.document_url && (
+          <DropdownMenuItem asChild>
+            <a
+              href={exam.document_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ver documento
+            </a>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        {showVigilanciaOption(exam.result) && (
+          <DropdownMenuItem onClick={() => onCreateVigilancia(exam)}>
+            <HeartPulse className="mr-2 h-4 w-4" />
+            Crear vigilancia
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem>
+          <Send className="mr-2 h-4 w-4" />
+          Enviar recordatorio
+        </DropdownMenuItem>
+        {exam.status !== "vigente" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => onDelete(exam)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/50">
-            <TableHead>Empleado</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Entidad</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Resultado</TableHead>
-            <TableHead className="w-12"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {exams.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                No hay exámenes registrados
-              </TableCell>
-            </TableRow>
-          ) : (
-            exams.map((exam) => (
-              <TableRow key={exam.id} className="hover:bg-muted/30">
-                <TableCell className="font-medium">
-                  {exam.employees
-                    ? `${exam.employees.first_name} ${exam.employees.last_name}`
-                    : "Sin asignar"}
-                </TableCell>
-                <TableCell>
-                  <Badge className={typeBadge[exam.exam_type] || typeBadge["Periódico"]}>
-                    {exam.exam_type}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {exam.entity || "-"}
-                </TableCell>
-                <TableCell>
-                  {formatDate(exam.scheduled_date || exam.exam_date)}
-                </TableCell>
-                <TableCell>
-                  {statusBadge[exam.status || "pendiente"]}
-                </TableCell>
-                <TableCell>
-                  {exam.result ? (
-                    <span className="font-medium">{exam.result}</span>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onViewDetails(exam)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        Ver detalles
-                      </DropdownMenuItem>
-                      {exam.status !== "vigente" && (
-                        <DropdownMenuItem onClick={() => onEdit(exam)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                      )}
-                      {!exam.result && exam.status !== "vigente" && (
-                        <DropdownMenuItem onClick={() => onAddResult(exam)}>
-                          <FileText className="mr-2 h-4 w-4" />
-                          Registrar resultado
-                        </DropdownMenuItem>
-                      )}
-                      {exam.document_url && (
-                        <DropdownMenuItem asChild>
-                          <a
-                            href={exam.document_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Ver documento
-                          </a>
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      {showVigilanciaOption(exam.result) && (
-                        <DropdownMenuItem onClick={() => onCreateVigilancia(exam)}>
-                          <HeartPulse className="mr-2 h-4 w-4" />
-                          Crear vigilancia
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem>
-                        <Send className="mr-2 h-4 w-4" />
-                        Enviar recordatorio
-                      </DropdownMenuItem>
-                      {exam.status !== "vigente" && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => onDelete(exam)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <ResponsiveTable
+      columns={columns}
+      data={exams}
+      getKey={(exam) => exam.id}
+      actions={actions}
+      emptyMessage="No hay exámenes registrados"
+    />
   );
 }

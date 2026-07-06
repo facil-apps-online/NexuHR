@@ -8,6 +8,7 @@ import { EmployeePortalAuthProvider } from "@/hooks/useEmployeePortalAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { EmployeePortalProtectedRoute } from "@/components/portal/EmployeePortalProtectedRoute";
+import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Empleados from "./pages/Empleados";
 import EmpleadoDetalle from "./pages/EmpleadoDetalle";
@@ -23,10 +24,15 @@ import Comunicaciones from "./pages/Comunicaciones";
 import Nomina from "./pages/Nomina";
 import Reglamento from "./pages/Reglamento";
 import Configuracion from "./pages/Configuracion";
+import Perfil from "./pages/Perfil";
 import Notificaciones from "./pages/Notificaciones";
 import Incapacidades from "./pages/Incapacidades";
+import ActivosFijos from "./pages/ActivosFijos";
 import Auth from "./pages/Auth";
 import RegisterTenant from "./pages/RegisterTenant";
+import Suscripcion from "./pages/Suscripcion";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailure from "./pages/PaymentFailure";
 import NotFound from "./pages/NotFound";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalChangePassword from "./pages/portal/PortalChangePassword";
@@ -59,7 +65,8 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/register-tenant" element={<RegisterTenant />} />
-              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/empleados" element={<ProtectedRoute><Empleados /></ProtectedRoute>} />
               <Route path="/empleados/:id" element={<ProtectedRoute><EmpleadoDetalle /></ProtectedRoute>} />
               <Route path="/vigilancias" element={<ProtectedRoute><Vigilancias /></ProtectedRoute>} />
@@ -74,8 +81,13 @@ const App = () => (
               <Route path="/nomina" element={<ProtectedRoute><Nomina /></ProtectedRoute>} />
               <Route path="/reglamento" element={<ProtectedRoute><Reglamento /></ProtectedRoute>} />
               <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
+              <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
               <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
               <Route path="/incapacidades" element={<ProtectedRoute><Incapacidades /></ProtectedRoute>} />
+              <Route path="/activos-fijos" element={<ProtectedRoute><ActivosFijos /></ProtectedRoute>} />
+              <Route path="/suscripcion" element={<ProtectedRoute><Suscripcion /></ProtectedRoute>} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/payment-failure" element={<PaymentFailure />} />
 
               {/* Employee Portal — case-insensitive aliases */}
               <Route path="/Funcionarios" element={<PortalLogin />} />

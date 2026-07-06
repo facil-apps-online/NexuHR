@@ -1,139 +1,124 @@
+import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AlertList } from "@/components/dashboard/AlertList";
-import { QuickActions } from "@/components/dashboard/QuickActions";
 import { UpcomingDeadlines } from "@/components/dashboard/UpcomingDeadlines";
-import { ComplianceChart } from "@/components/dashboard/ComplianceChart";
-import { 
-  Users, 
-  Stethoscope, 
-  ShieldCheck, 
-  FileSignature, 
-  GraduationCap, 
+import { ComplianceBars } from "@/components/dashboard/ComplianceBars";
+import { FabToolbox } from "@/components/dashboard/FabToolbox";
+import { PeriodSelector, type PeriodKey } from "@/components/dashboard/PeriodSelector";
+import {
+  Users,
+  Stethoscope,
+  ShieldCheck,
+  FileSignature,
+  GraduationCap,
   ClipboardCheck,
-  
-  Mail
+  Mail,
+  HeartPulse,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { startOfMonth, subMonths } from "date-fns";
+import { useDashboardStats, type DashboardStatsBlock } from "@/hooks/useDashboardStats";
+
+function num(block: DashboardStatsBlock | undefined, key: string, fallback = 0): number {
+  const value = block?.[key];
+  return typeof value === "number" ? value : fallback;
+}
+
+const periodLabels: Record<PeriodKey, string> = {
+  current: "Este mes",
+  prev: "Mes anterior",
+  quarter: "Último trimestre",
+};
 
 export default function Dashboard() {
-  const { data: employeeStats } = useQuery({
-    queryKey: ["dashboard-employee-stats"],
-    queryFn: async () => {
-      const startOfCurrentMonth = startOfMonth(new Date()).toISOString();
-      const startOfLastMonth = startOfMonth(subMonths(new Date(), 1)).toISOString();
-      const { data: employees, error } = await supabase
-        .from("employees")
-        .select("id, active, hire_date, created_at");
-      if (error) throw error;
-      const activeEmployees = employees?.filter(e => e.active) || [];
-      const totalActive = activeEmployees.length;
-      const newThisMonth = activeEmployees.filter(e => {
-        const hireDate = e.hire_date || e.created_at;
-        return hireDate && hireDate >= startOfCurrentMonth;
-      }).length;
-      const newLastMonth = activeEmployees.filter(e => {
-        const hireDate = e.hire_date || e.created_at;
-        return hireDate && hireDate >= startOfLastMonth && hireDate < startOfCurrentMonth;
-      }).length;
-      const trend = newLastMonth > 0 
-        ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100)
-        : newThisMonth > 0 ? 100 : 0;
-      return { totalActive, newThisMonth, trend, trendIsPositive: trend >= 0 };
-    },
-  });
+  const [periodKey, setPeriodKey] = useState<PeriodKey>("current");
+  const [referenceDate, setReferenceDate] = useState<Date | undefined>(undefined);
+  const { data: dashboardStats } = useDashboardStats({ referenceDate });
 
-  const { data: examStats } = useQuery({
-    queryKey: ["dashboard-exam-stats"],
-    queryFn: async () => {
-      const { data: exams, error } = await supabase
-        .from("exams")
-        .select("id, status, employee_id");
-      if (error) throw error;
-      const total = exams?.length || 0;
-      const upToDate = exams?.filter(e => e.status === "vigente").length || 0;
-      const percentage = total > 0 ? Math.round((upToDate / total) * 100) : 0;
-      return { total, upToDate, percentage };
-    },
-  });
+  const periodLabel = periodLabels[periodKey];
 
-  const { data: courseStats } = useQuery({
-    queryKey: ["dashboard-course-stats"],
-    queryFn: async () => {
-      const { data: courses, error } = await supabase
-        .from("courses")
-        .select("id, status, expiry_date");
-      if (error) throw error;
-      const total = courses?.length || 0;
-      const completed = courses?.filter(c => c.status === "completado").length || 0;
-      const expired = courses?.filter(c => c.status === "vencido").length || 0;
-      const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-      return { total, completed, expired, percentage };
-    },
-  });
+  const handlePeriodChange = (key: PeriodKey, date: Date | undefined) => {
+    setPeriodKey(key);
+    setReferenceDate(date);
+  };
 
-  const { data: vigilanciaStats } = useQuery({
-    queryKey: ["dashboard-vigilancia-stats"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vigilancias")
-        .select("id, status");
-      if (error) throw error;
-      const active = data?.filter(v => v.status === "activa").length || 0;
-      const expired = data?.filter(v => v.status === "vencida").length || 0;
-      return { total: data?.length || 0, active, expired };
-    },
-  });
+  const employees = dashboardStats?.employees;
+  const trend = num(employees, "trend_pct");
+  const employeeStats = employees
+    ? {
+        totalActive: num(employees, "total_active"),
+        newThisMonth: num(employees, "new_this_month"),
+        trend,
+        trendIsPositive: trend >= 0,
+      }
+    : undefined;
 
-  const { data: evalStats } = useQuery({
-    queryKey: ["dashboard-eval-stats"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("evaluations")
-        .select("id, status");
-      if (error) throw error;
-      const pending = data?.filter((e: any) => e.status === "pendiente" || e.status === "en_proceso").length || 0;
-      return { total: data?.length || 0, pending };
-    },
-  });
+  const exams = dashboardStats?.exams;
+  const examStats = exams
+    ? {
+        total: num(exams, "total"),
+        upToDate: num(exams, "vigente"),
+        percentage: num(exams, "pct_vigente"),
+      }
+    : undefined;
 
-  const { data: commStats } = useQuery({
-    queryKey: ["dashboard-comm-stats"],
-    queryFn: async () => {
-      const startOfCurrentMonth = startOfMonth(new Date()).toISOString();
-      const { data, error } = await supabase
-        .from("communications")
-        .select("id, status, sent_at");
-      if (error) throw error;
-      const sentThisMonth = data?.filter(c => c.status === "enviado" && c.sent_at && c.sent_at >= startOfCurrentMonth).length || 0;
-      return { total: data?.length || 0, sentThisMonth };
-    },
-  });
+  const courses = dashboardStats?.courses;
+  const courseStats = courses
+    ? {
+        total: num(courses, "total"),
+        completed: num(courses, "completado"),
+        expired: num(courses, "vencido"),
+        percentage: num(courses, "pct_completado"),
+      }
+    : undefined;
 
-  const { data: notificationStats } = useQuery({
-    queryKey: ["dashboard-notification-stats"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("id, read, type");
-      if (error) throw error;
-      const unread = data?.filter(n => !n.read).length || 0;
-      const urgent = data?.filter(n => !n.read && n.type === "warning").length || 0;
-      return { unread, urgent };
-    },
-  });
+  const vigilancias = dashboardStats?.vigilancias;
+  const vigilanciaStats = vigilancias
+    ? {
+        total: num(vigilancias, "total"),
+        active: num(vigilancias, "activa"),
+        expired: num(vigilancias, "vencida"),
+      }
+    : undefined;
+
+  const evaluations = dashboardStats?.evaluations;
+  const evalStats = evaluations
+    ? {
+        total: num(evaluations, "total"),
+        pending: num(evaluations, "pending"),
+      }
+    : undefined;
+
+  const communications = dashboardStats?.communications;
+  const commStats = communications
+    ? {
+        total: num(communications, "total"),
+        sentThisMonth: num(communications, "sent_this_month"),
+      }
+    : undefined;
+
+  const notifications = dashboardStats?.notifications;
+  const notificationStats = notifications
+    ? {
+        unread: num(notifications, "unread"),
+        urgent: num(notifications, "urgent"),
+      }
+    : undefined;
+
+  const incapacidadesAlert = (dashboardStats?.alerts ?? []).find((a) => a.id === "alert-7");
+  const incapacidadesCount = incapacidadesAlert?.count ?? 0;
 
   return (
     <MainLayout>
       <div className="animate-fade-in">
         {/* Page header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">Panel Principal</h1>
-          <p className="mt-1 text-muted-foreground">
-            Bienvenido de nuevo. Aquí está el resumen de hoy.
-          </p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Panel Principal</h1>
+            <p className="mt-1 text-muted-foreground">
+              {periodLabel} &middot; Resumen del dashboard
+            </p>
+          </div>
+          <PeriodSelector value={periodKey} onChange={handlePeriodChange} />
         </div>
 
         {/* Stats grid - Row 1 */}
@@ -143,6 +128,7 @@ export default function Dashboard() {
             value={employeeStats?.totalActive ?? "-"}
             subtitle={`${employeeStats?.newThisMonth ?? 0} nuevos este mes`}
             icon={Users}
+            href="/empleados"
             trend={employeeStats ? { value: Math.abs(employeeStats.trend), isPositive: employeeStats.trendIsPositive } : undefined}
           />
           <StatCard
@@ -150,6 +136,7 @@ export default function Dashboard() {
             value={examStats ? `${examStats.percentage}%` : "-"}
             subtitle={examStats ? `${examStats.upToDate} de ${examStats.total} exámenes` : "Cargando..."}
             icon={Stethoscope}
+            href="/examenes"
             variant={examStats && examStats.percentage >= 80 ? "success" : "warning"}
           />
           <StatCard
@@ -157,6 +144,7 @@ export default function Dashboard() {
             value={courseStats ? `${courseStats.percentage}%` : "-"}
             subtitle={courseStats ? `${courseStats.expired} vencidos` : "Cargando..."}
             icon={GraduationCap}
+            href="/cursos"
             variant={courseStats && courseStats.percentage >= 80 ? "success" : "warning"}
           />
           <StatCard
@@ -175,6 +163,7 @@ export default function Dashboard() {
             value={vigilanciaStats?.active ?? "-"}
             subtitle={`${vigilanciaStats?.expired ?? 0} vencidas`}
             icon={FileSignature}
+            href="/vigilancias"
             variant={vigilanciaStats && vigilanciaStats.expired > 0 ? "danger" : "default"}
           />
           <StatCard
@@ -182,6 +171,7 @@ export default function Dashboard() {
             value={evalStats?.pending ?? "-"}
             subtitle={`${evalStats?.total ?? 0} en total`}
             icon={ClipboardCheck}
+            href="/evaluaciones-desempeno"
             variant={evalStats && evalStats.pending > 0 ? "warning" : "default"}
           />
           <StatCard
@@ -189,35 +179,37 @@ export default function Dashboard() {
             value={commStats?.sentThisMonth ?? "-"}
             subtitle="Enviadas este mes"
             icon={Mail}
+            href="/comunicaciones"
+          />
+          <StatCard
+            title="Incapacidades en Revisión"
+            value={incapacidadesCount}
+            subtitle="Pendientes por revisar"
+            icon={HeartPulse}
+            href="/incapacidades"
+            variant={incapacidadesCount > 0 ? "warning" : "default"}
           />
         </div>
 
         {/* Main content grid */}
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left column - Alerts */}
           <div className="lg:col-span-2">
-            <AlertList />
+            <AlertList referenceDate={referenceDate} />
           </div>
-
-          {/* Right column - Quick actions */}
           <div>
-            <QuickActions />
+            <ComplianceBars referenceDate={referenceDate} />
           </div>
         </div>
 
         {/* Second row */}
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          {/* Upcoming deadlines */}
-          <div className="lg:col-span-2">
-            <UpcomingDeadlines />
-          </div>
-
-          {/* Compliance chart */}
-          <div>
-            <ComplianceChart />
+          <div className="lg:col-span-3">
+            <UpcomingDeadlines referenceDate={referenceDate} />
           </div>
         </div>
       </div>
+
+      <FabToolbox />
     </MainLayout>
   );
 }

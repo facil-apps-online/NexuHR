@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -65,6 +63,57 @@ export default function Evaluaciones() {
     enProceso: evaluations?.filter((e: any) => e.status === "en_proceso").length || 0,
     pendientes: evaluations?.filter((e: any) => e.status === "pendiente").length || 0,
   };
+
+  const columns: ResponsiveColumn<any>[] = [
+    {
+      key: "employee",
+      label: "Empleado",
+      primary: true,
+      render: (item) => <span className="font-medium">{item.employees?.first_name} {item.employees?.last_name}</span>,
+    },
+    {
+      key: "position",
+      label: "Cargo",
+      subtitle: true,
+      render: (item) => item.employees?.position || "-",
+    },
+    {
+      key: "template",
+      label: "Plantilla",
+      render: (item) => item.evaluation_templates?.name || "-",
+    },
+    {
+      key: "period",
+      label: "Periodo",
+      render: (item) => item.period,
+    },
+    {
+      key: "date",
+      label: "Fecha",
+      render: (item) => format(new Date(item.evaluation_date), "d MMM yyyy", { locale: es }),
+    },
+    {
+      key: "score",
+      label: "Puntaje",
+      render: (item) => item.overall_score ? (
+        <div className="flex items-center gap-1">
+          <Star className="h-4 w-4 fill-warning text-warning" />
+          <span className="font-medium">{item.overall_score}</span>
+          <span className="text-muted-foreground">/{item.evaluation_templates?.scale_max || 5}</span>
+        </div>
+      ) : <span className="text-muted-foreground">-</span>,
+    },
+    {
+      key: "status",
+      label: "Estado",
+      render: (item) => (
+        <Badge variant="outline" className={estadoColor[item.status || "pendiente"]}>
+          {item.status === "en_proceso" ? "En proceso" :
+            item.status?.charAt(0).toUpperCase() + item.status?.slice(1) || "Pendiente"}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
     <MainLayout>
@@ -205,70 +254,24 @@ export default function Evaluaciones() {
                     <p>No hay evaluaciones registradas</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Empleado</TableHead>
-                        <TableHead>Cargo</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Plantilla</TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Puntaje</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((eval_: any) => (
-                        <TableRow key={eval_.id}>
-                          <TableCell className="font-medium">
-                            {eval_.employees?.first_name} {eval_.employees?.last_name}
-                          </TableCell>
-                          <TableCell>{eval_.employees?.position || "-"}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {eval_.evaluation_templates?.evaluation_type || "-"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{eval_.evaluation_templates?.name || "-"}</TableCell>
-                          <TableCell>{eval_.period}</TableCell>
-                          <TableCell>
-                            {format(new Date(eval_.evaluation_date), "d MMM yyyy", { locale: es })}
-                          </TableCell>
-                          <TableCell>
-                            {eval_.overall_score ? (
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4 fill-warning text-warning" />
-                                <span className="font-medium">{eval_.overall_score}</span>
-                                <span className="text-muted-foreground">/{eval_.evaluation_templates?.scale_max || 5}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={estadoColor[eval_.status || "pendiente"]}>
-                              {eval_.status === "en_proceso" ? "En proceso" :
-                                eval_.status?.charAt(0).toUpperCase() + eval_.status?.slice(1) || "Pendiente"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => {
-                              if (eval_.status === "completada") {
-                                setShowReportId(eval_.id);
-                              } else {
-                                setSelectedEvalId(eval_.id);
-                                setShowExecForm(true);
-                              }
-                            }}>
-                              {eval_.status === "completada" ? "Ver Informe" : "Evaluar"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ResponsiveTable
+                    columns={columns}
+                    data={filtered}
+                    getKey={(item: any) => item.id}
+                    emptyMessage="No hay evaluaciones registradas"
+                    actions={(item: any) => (
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        if (item.status === "completada") {
+                          setShowReportId(item.id);
+                        } else {
+                          setSelectedEvalId(item.id);
+                          setShowExecForm(true);
+                        }
+                      }}>
+                        {item.status === "completada" ? "Ver Informe" : "Evaluar"}
+                      </Button>
+                    )}
+                  />
                 )}
               </CardContent>
             </Card>

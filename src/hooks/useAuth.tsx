@@ -110,14 +110,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; supabaseClient:
           const platformId = import.meta.env.VITE_PLATFORM_ID;
           if (!platformId) throw new Error("Platform ID no configurado en las variables de entorno.");
 
-          const { error: refreshError } = await supabaseClient.functions.invoke('user-actions', {
+          const { data, error: refreshError } = await supabaseClient.functions.invoke('user-actions', {
             body: {
               action: 'refresh-user-metadata',
               payload: { userId: id, platformId }
             }
           });
 
-          if (refreshError) throw new Error(`Error al rehidratar metadatos: ${refreshError.message}`);
+          if (refreshError) throw new Error(`Error de red al rehidratar metadatos: ${refreshError.message}`);
+          if (data && !data.success) throw new Error(`Error en servidor al rehidratar metadatos: ${data.message}`);
 
           await supabaseClient.auth.refreshSession();
           return;
@@ -200,17 +201,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; supabaseClient:
     if (data.session) {
       await supabaseClient.auth.setSession(data.session);
 
-      const { error: refreshError } = await supabaseClient.functions.invoke('user-actions', {
+      const { data: refreshData, error: refreshError } = await supabaseClient.functions.invoke('user-actions', {
         body: {
           action: 'refresh-user-metadata',
           payload: { userId: data.session.user.id, platformId }
         }
       });
 
-      if (refreshError) console.error(`Error al rehidratar metadatos: ${refreshError.message}`);
+      if (refreshError) throw new Error(`Error de red al rehidratar metadatos: ${refreshError.message}`);
+      if (refreshData && !refreshData.success) throw new Error(`Error en servidor al rehidratar metadatos: ${refreshData.message}`);
 
       await supabaseClient.auth.refreshSession();
-      navigate('/');
+      navigate('/dashboard');
     } else {
       throw new Error("No se recibieron datos de sesión válidos del servidor.");
     }

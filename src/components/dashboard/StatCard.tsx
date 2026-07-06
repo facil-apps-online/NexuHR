@@ -1,11 +1,13 @@
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   icon: LucideIcon;
+  href?: string;
   trend?: {
     value: number;
     isPositive: boolean;
@@ -32,13 +34,15 @@ export function StatCard({
   value,
   subtitle,
   icon: Icon,
+  href,
   trend,
   variant = "default",
 }: StatCardProps) {
-  return (
+  const content = (
     <div
       className={cn(
         "rounded-xl border p-6 shadow-card transition-all duration-200 hover:shadow-card-hover card-interactive",
+        href && "cursor-pointer",
         variantStyles[variant]
       )}
     >
@@ -69,4 +73,10 @@ export function StatCard({
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link to={href}>{content}</Link>;
+  }
+
+  return content;
 }

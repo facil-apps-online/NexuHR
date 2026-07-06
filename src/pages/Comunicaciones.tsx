@@ -3,14 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import {
   Select,
   SelectContent,
@@ -26,12 +19,9 @@ import {
   Mail, 
   Send, 
   Users, 
-  Building2, 
-  Briefcase,
   ListChecks,
   Clock,
   CheckCircle2,
-  XCircle,
   Settings
 } from "lucide-react";
 
@@ -98,12 +88,67 @@ const estadoColor = {
   Fallido: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const tipoListaIcon = {
-  general: Users,
-  cargo: Briefcase,
-  departamento: Building2,
-  personalizada: ListChecks,
-};
+const columns: ResponsiveColumn<(typeof comunicaciones)[number]>[] = [
+  {
+    key: "subject",
+    label: "Asunto",
+    primary: true,
+    subtitle: true,
+    render: (item) => item.asunto,
+  },
+  {
+    key: "type",
+    label: "Tipo",
+    render: (item) => item.lista,
+  },
+  {
+    key: "recipients",
+    label: "Destinatarios",
+    hideOnMobile: true,
+    render: (item) => item.destinatarios,
+  },
+  {
+    key: "sent",
+    label: "Enviados",
+    hideOnMobile: true,
+    render: (item) =>
+      item.enviados > 0 ? (
+        <span className="text-emerald-600">{item.enviados}</span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+  },
+  {
+    key: "read",
+    label: "Leídos",
+    hideOnMobile: true,
+    render: (item) =>
+      item.leidos > 0 ? (
+        <span>
+          {item.leidos} ({Math.round((item.leidos / item.enviados) * 100)}%)
+        </span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+  },
+  {
+    key: "date",
+    label: "Fecha",
+    render: (item) => item.fecha,
+  },
+  {
+    key: "status",
+    label: "Estado",
+    render: (item) => (
+      <Badge
+        variant="outline"
+        className={estadoColor[item.estado as keyof typeof estadoColor]}
+      >
+        {item.estado}
+      </Badge>
+    ),
+  },
+];
 
 export default function Comunicaciones() {
   return (
@@ -242,65 +287,16 @@ export default function Comunicaciones() {
                 <CardTitle>Historial de Comunicaciones</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Asunto</TableHead>
-                      <TableHead>Lista</TableHead>
-                      <TableHead>Destinatarios</TableHead>
-                      <TableHead>Enviados</TableHead>
-                      <TableHead>Leídos</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {comunicaciones.map((com) => {
-                      const IconComponent = tipoListaIcon[com.tipoLista as keyof typeof tipoListaIcon];
-                      return (
-                        <TableRow key={com.id}>
-                          <TableCell className="font-medium">{com.asunto}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <IconComponent className="h-4 w-4 text-muted-foreground" />
-                              <span>{com.lista}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{com.destinatarios}</TableCell>
-                          <TableCell>
-                            {com.enviados > 0 ? (
-                              <span className="text-emerald-600">{com.enviados}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {com.leidos > 0 ? (
-                              <span>{com.leidos} ({Math.round((com.leidos / com.enviados) * 100)}%)</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>{com.fecha}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={estadoColor[com.estado as keyof typeof estadoColor]}
-                            >
-                              {com.estado}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm">
-                              Ver Detalle
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <ResponsiveTable
+                  columns={columns}
+                  data={comunicaciones}
+                  getKey={(item) => String(item.id)}
+                  actions={(item) => (
+                    <Button variant="ghost" size="sm">
+                      Ver Detalle
+                    </Button>
+                  )}
+                />
               </CardContent>
             </Card>
           </TabsContent>

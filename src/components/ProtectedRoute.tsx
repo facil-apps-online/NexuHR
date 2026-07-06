@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, tenantId, loading, logout } = useAuth();
 
   if (loading) {
     return (
@@ -26,8 +26,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Check if user has a tenant - if profile exists but no tenant, show error
-  if (profile && !profile.tenant_id) {
+  // Check if user has a tenant - if profile exists but no tenantId, show error
+  if (profile && !tenantId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md">
@@ -41,7 +41,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={signOut} variant="outline">
+            <Button onClick={logout} variant="outline">
               Cerrar Sesión
             </Button>
           </CardContent>

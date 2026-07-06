@@ -1,13 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +43,35 @@ const formatDate = (date: string | null) => {
   return format(new Date(date), "d MMM yyyy", { locale: es });
 };
 
+const columns: ResponsiveColumn<CourseWithEmployee>[] = [
+  {
+    key: "employee",
+    label: "Empleado",
+    primary: true,
+    subtitle: true,
+    render: (c) =>
+      c.employees ? `${c.employees.first_name} ${c.employees.last_name}` : "-",
+  },
+  { key: "course", label: "Curso", render: (c) => c.course_name },
+  { key: "provider", label: "Entidad", render: (c) => c.provider || "-" },
+  {
+    key: "startDate",
+    label: "Fecha Obtención",
+    render: (c) => formatDate(c.start_date),
+  },
+  {
+    key: "expiry",
+    label: "Vencimiento",
+    hideOnMobile: true,
+    render: (c) => formatDate(c.expiry_date),
+  },
+  {
+    key: "status",
+    label: "Estado",
+    render: (c) => statusBadge[c.status || "pendiente"],
+  },
+];
+
 export function CursosTable({ courses, onViewDetails, onEdit, onDelete }: CursosTableProps) {
   const [search, setSearch] = useState("");
 
@@ -68,11 +90,11 @@ export function CursosTable({ courses, onViewDetails, onEdit, onDelete }: Cursos
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Registro de Cursos</CardTitle>
-        <div className="relative">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por empleado, curso o proveedor..."
-            className="pl-9 w-72"
+            className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -85,62 +107,38 @@ export function CursosTable({ courses, onViewDetails, onEdit, onDelete }: Cursos
             <p>{search ? "No se encontraron resultados" : "No hay cursos registrados"}</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Empleado</TableHead>
-                <TableHead>Curso</TableHead>
-                <TableHead>Entidad</TableHead>
-                <TableHead>Fecha Obtención</TableHead>
-                <TableHead>Vencimiento</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((curso) => (
-                <TableRow key={curso.id}>
-                  <TableCell className="font-medium">
-                    {curso.employees
-                      ? `${curso.employees.first_name} ${curso.employees.last_name}`
-                      : "-"}
-                  </TableCell>
-                  <TableCell>{curso.course_name}</TableCell>
-                  <TableCell>{curso.provider || "-"}</TableCell>
-                  <TableCell>{formatDate(curso.start_date)}</TableCell>
-                  <TableCell>{formatDate(curso.expiry_date)}</TableCell>
-                  <TableCell>{statusBadge[curso.status || "pendiente"]}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onViewDetails(curso)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalles
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(curso)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => onDelete(curso)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ResponsiveTable
+            columns={columns}
+            data={filtered}
+            getKey={(c) => c.id}
+            actions={(curso) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onViewDetails(curso)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Ver detalles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(curso)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onDelete(curso)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          />
         )}
       </CardContent>
     </Card>

@@ -5,14 +5,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +84,93 @@ export default function Dotacion() {
     setFormOpen(true);
   };
 
+  const columns: ResponsiveColumn<Tables<"dotacion">>[] = [
+    {
+      key: "employee",
+      label: "Empleado",
+      primary: true,
+      subtitle: true,
+      render: (item) => {
+        const emp = item.employees as any;
+        return emp ? `${emp.first_name} ${emp.last_name}` : "-";
+      },
+    },
+    {
+      key: "item",
+      label: "Elemento",
+      render: (item) => item.item_name,
+    },
+    {
+      key: "type",
+      label: "Tipo",
+      render: (item) => item.item_type || "-",
+    },
+    {
+      key: "size",
+      label: "Talla",
+      render: (item) => item.size || "-",
+    },
+    {
+      key: "quantity",
+      label: "Cantidad",
+      hideOnMobile: true,
+      render: (item) => item.quantity,
+    },
+    {
+      key: "deliveryDate",
+      label: "Fecha Entrega",
+      hideOnMobile: true,
+      render: (item) => formatDate(item.delivery_date),
+    },
+    {
+      key: "expiry",
+      label: "Vencimiento",
+      hideOnMobile: true,
+      render: (item) => {
+        const isExpired = item.expiry_date && isPast(new Date(item.expiry_date));
+        return item.expiry_date ? (
+          <Badge className={isExpired
+            ? "bg-destructive/10 text-destructive border-destructive/20"
+            : "bg-success/10 text-success border-success/20"
+          }>
+            {formatDate(item.expiry_date)}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
+      },
+    },
+    {
+      key: "signature",
+      label: "Firma",
+      hideOnMobile: true,
+      render: (item) =>
+        item.signature_url ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto p-0"
+            onClick={() => {
+              const { data } = supabase.storage
+                .from("signatures")
+                .getPublicUrl(item.signature_url!);
+              setViewSignatureUrl(data.publicUrl);
+            }}
+          >
+            <Badge className="bg-success/10 text-success border-success/20 cursor-pointer">
+              <Eye className="mr-1 h-3 w-3" />
+              Ver Firma
+            </Badge>
+          </Button>
+        ) : (
+          <Badge className="bg-warning/10 text-warning border-warning/20">
+            <Clock className="mr-1 h-3 w-3" />
+            Pendiente
+          </Badge>
+        ),
+    },
+  ];
+
   return (
     <MainLayout>
       <div className="animate-fade-in">
@@ -163,98 +243,34 @@ export default function Dotacion() {
                 <p>No hay entregas registradas</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Empleado</TableHead>
-                    <TableHead>Elemento</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Talla</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Fecha Entrega</TableHead>
-                    <TableHead>Vencimiento</TableHead>
-                    <TableHead>Firma</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dotacion.map((item) => {
-                    const emp = item.employees as any;
-                    const isExpired = item.expiry_date && isPast(new Date(item.expiry_date));
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          {emp ? `${emp.first_name} ${emp.last_name}` : "-"}
-                        </TableCell>
-                        <TableCell>{item.item_name}</TableCell>
-                        <TableCell>{item.item_type || "-"}</TableCell>
-                        <TableCell>{item.size || "-"}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{formatDate(item.delivery_date)}</TableCell>
-                        <TableCell>
-                          {item.expiry_date ? (
-                            <Badge className={isExpired
-                              ? "bg-destructive/10 text-destructive border-destructive/20"
-                              : "bg-success/10 text-success border-success/20"
-                            }>
-                              {formatDate(item.expiry_date)}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {item.signature_url ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-0"
-                              onClick={() => {
-                                const { data } = supabase.storage
-                                  .from("signatures")
-                                  .getPublicUrl(item.signature_url!);
-                                setViewSignatureUrl(data.publicUrl);
-                              }}
-                            >
-                              <Badge className="bg-success/10 text-success border-success/20 cursor-pointer">
-                                <Eye className="mr-1 h-3 w-3" />
-                                Ver Firma
-                              </Badge>
-                            </Button>
-                          ) : (
-                            <Badge className="bg-warning/10 text-warning border-warning/20">
-                              <Clock className="mr-1 h-3 w-3" />
-                              Pendiente
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(item)}
-                              disabled={!!item.signature_url}
-                              title={item.signature_url ? "No se puede editar un registro firmado" : "Editar"}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(item.id)}
-                              disabled={!!item.signature_url}
-                              title={item.signature_url ? "No se puede eliminar un registro firmado" : "Eliminar"}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <ResponsiveTable
+                columns={columns}
+                data={dotacion}
+                getKey={(item) => item.id}
+                emptyMessage="No hay entregas registradas"
+                actions={(item) => (
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(item)}
+                      disabled={!!item.signature_url}
+                      title={item.signature_url ? "No se puede editar un registro firmado" : "Editar"}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteId(item.id)}
+                      disabled={!!item.signature_url}
+                      title={item.signature_url ? "No se puede eliminar un registro firmado" : "Eliminar"}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                )}
+              />
             )}
           </CardContent>
         </Card>
