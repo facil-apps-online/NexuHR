@@ -8,7 +8,19 @@
     <meta name="description" content="NexuHR - Sistema de Gestión de Recursos Humanos" />
     <meta name="author" content="NexuHR" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      (function() {
+        var isPortal = window.location.pathname.startsWith('/Funcionarios');
+        var manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = isPortal ? '/manifest-portal.webmanifest' : '/manifest.webmanifest';
+        document.head.appendChild(manifestLink);
+        
+        if (isPortal) {
+          document.title = 'Nexu Portal';
+        }
+      })();
+    </script>
     <meta name="theme-color" content="#0ea5e9" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

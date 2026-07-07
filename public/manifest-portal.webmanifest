@@ -1,8 +1,8 @@
 {
-  "name": "NexuHR.pro",
-  "short_name": "NexuHR.pro",
-  "description": "Sistema integral de gestión de recursos humanos",
-  "start_url": "/",
+  "name": "Nexu Portal",
+  "short_name": "Nexu Portal",
+  "description": "Portal de Empleados de NexuHR",
+  "start_url": "/Funcionarios/inicio",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
