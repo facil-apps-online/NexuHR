@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { EmployeePortalLayout } from '@/components/portal/EmployeePortalLayout';
+import { PortalRecordAttachments } from '@/components/portal/PortalRecordAttachments';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -43,6 +44,7 @@ export default function PortalVigilancias() {
               {v.follow_up_date && <p className="text-sm">Próximo seguimiento: <span className="font-medium">{v.follow_up_date}</span></p>}
               {v.recommendations && <p className="text-sm mt-1"><span className="text-muted-foreground">Recomendaciones:</span> {v.recommendations}</p>}
               {v.restrictions && <p className="text-sm"><span className="text-muted-foreground">Restricciones:</span> {v.restrictions}</p>}
+              <PortalRecordAttachments module="vigilancias" recordId={v.id} />
             </Card>
           ))}
         </div>

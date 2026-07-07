@@ -13,7 +13,6 @@ import { toast } from "sonner";
 interface AlertConfig {
   enabled: boolean;
   daysBeforeExpiry: number;
-  emailNotification: boolean;
 }
 
 interface AlertSettings {
@@ -27,13 +26,13 @@ interface AlertSettings {
 }
 
 const defaultSettings: AlertSettings = {
-  examenesVencer: { enabled: true, daysBeforeExpiry: 30, emailNotification: true },
-  cursosVencer: { enabled: true, daysBeforeExpiry: 30, emailNotification: true },
-  firmasPendientes: { enabled: true, daysBeforeExpiry: 7, emailNotification: false },
-  comitesVencer: { enabled: true, daysBeforeExpiry: 60, emailNotification: true },
-  dotacionEntrega: { enabled: false, daysBeforeExpiry: 15, emailNotification: false },
-  evaluacionesPendientes: { enabled: true, daysBeforeExpiry: 10, emailNotification: false },
-  vigilanciaSeguimiento: { enabled: true, daysBeforeExpiry: 7, emailNotification: true },
+  examenesVencer: { enabled: true, daysBeforeExpiry: 30 },
+  cursosVencer: { enabled: true, daysBeforeExpiry: 30 },
+  firmasPendientes: { enabled: true, daysBeforeExpiry: 7 },
+  comitesVencer: { enabled: true, daysBeforeExpiry: 60 },
+  dotacionEntrega: { enabled: false, daysBeforeExpiry: 15 },
+  evaluacionesPendientes: { enabled: true, daysBeforeExpiry: 10 },
+  vigilanciaSeguimiento: { enabled: true, daysBeforeExpiry: 7 },
 };
 
 const alertTypes = [
@@ -82,23 +81,26 @@ const alertTypes = [
 ];
 
 export function AlertSettings() {
-  const { profile } = useAuth();
+  const { currentAssignment, tenantId } = useAuth();
+  const platformId = currentAssignment?.platform_id;
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<AlertSettings>(defaultSettings);
 
   const { data: tenantData, isLoading } = useQuery({
-    queryKey: ["tenant-alert-settings", profile?.tenant_id],
+    queryKey: ["tenant-alert-settings", tenantId],
     queryFn: async () => {
-      if (!profile?.tenant_id) return null;
+      if (!tenantId || !platformId) return null;
       const { data, error } = await supabase
         .from("tenant_settings")
         .select("settings_data")
-        .eq("tenant_id", profile.tenant_id)
+        .eq("tenant_id", tenantId)
+        .eq("platform_id", platformId)
+        .eq("setting_key", "alerts")
         .maybeSingle();
       if (error) throw error;
       return data || { settings_data: {} };
     },
-    enabled: !!profile?.tenant_id,
+    enabled: !!tenantId && !!platformId,
   });
 
   useEffect(() => {
@@ -112,7 +114,7 @@ export function AlertSettings() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newAlertSettings: AlertSettings) => {
-      if (!profile?.tenant_id) throw new Error("No tenant");
+      if (!tenantId || !platformId) throw new Error("No tenant");
       
       const currentSettings = (tenantData?.settings_data as Record<string, unknown>) || {};
       const updatedSettings = {
@@ -120,16 +122,14 @@ export function AlertSettings() {
         alerts: newAlertSettings,
       };
 
-      const platformId = import.meta.env.VITE_PLATFORM_ID;
-      if (!platformId) throw new Error("No platform_id found");
-
       const { error } = await supabase
         .from("tenant_settings")
         .upsert({ 
-          tenant_id: profile.tenant_id, 
+          tenant_id: tenantId, 
           platform_id: platformId,
+          setting_key: "alerts",
           settings_data: JSON.parse(JSON.stringify(updatedSettings)) 
-        }, { onConflict: "tenant_id,platform_id" });
+        }, { onConflict: "tenant_id,platform_id,setting_key" });
       
       if (error) throw error;
     },
@@ -142,10 +142,10 @@ export function AlertSettings() {
     },
   });
 
-  const handleToggle = (key: keyof AlertSettings, field: "enabled" | "emailNotification") => {
+  const handleToggle = (key: keyof AlertSettings) => {
     setSettings((prev) => ({
       ...prev,
-      [key]: { ...prev[key], [field]: !prev[key][field] },
+      [key]: { ...prev[key], enabled: !prev[key].enabled },
     }));
   };
 
@@ -171,7 +171,7 @@ export function AlertSettings() {
       <CardHeader>
         <CardTitle>Configuración de Alertas</CardTitle>
         <CardDescription>
-          Define cuándo y cómo recibir notificaciones del sistema
+          Define los días de anticipación para que el sistema genere alertas en la campanita
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -199,12 +199,12 @@ export function AlertSettings() {
                   </div>
                   <Switch
                     checked={config.enabled}
-                    onCheckedChange={() => handleToggle(alert.key, "enabled")}
+                    onCheckedChange={() => handleToggle(alert.key)}
                   />
                 </div>
                 
                 {config.enabled && (
-                  <div className="ml-12 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/50">
+                  <div className="ml-12 pt-2 border-t border-border/50">
                     <div className="space-y-2">
                       <Label htmlFor={`days-${alert.key}`} className="text-sm">
                         Días de anticipación
@@ -218,16 +218,6 @@ export function AlertSettings() {
                         onChange={(e) => handleDaysChange(alert.key, parseInt(e.target.value) || 1)}
                         className="w-24"
                       />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id={`email-${alert.key}`}
-                        checked={config.emailNotification}
-                        onCheckedChange={() => handleToggle(alert.key, "emailNotification")}
-                      />
-                      <Label htmlFor={`email-${alert.key}`} className="text-sm">
-                        Notificar por email
-                      </Label>
                     </div>
                   </div>
                 )}
@@ -246,7 +236,7 @@ export function AlertSettings() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Guardar preferencias
+          Guardar alertas
         </Button>
       </CardContent>
     </Card>

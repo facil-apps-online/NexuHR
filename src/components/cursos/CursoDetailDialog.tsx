@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface CourseWithEmployee extends Tables<"courses"> {
@@ -32,7 +33,7 @@ const statusBadge: Record<string, React.ReactNode> = {
 
 const formatDate = (date: string | null) => {
   if (!date) return "-";
-  return format(new Date(date), "d MMM yyyy", { locale: es });
+  return format(safeNewDate(date), "d MMM yyyy", { locale: es });
 };
 
 export function CursoDetailDialog({ open, onOpenChange, curso }: CursoDetailDialogProps) {

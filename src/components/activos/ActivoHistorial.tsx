@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import { Loader2, CircleDot, ArrowRightLeft, Wrench, Trash2 } from "lucide-react";
 
 const eventConfig = {
@@ -66,7 +67,7 @@ export function ActivoHistorial({ open, onOpenChange, activoId }: ActivoHistoria
                   <div className="flex-1 pt-1">
                     <p className="text-sm font-medium">{config.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(ev.fecha_evento), "d MMM yyyy, HH:mm", { locale: es })}
+                      {format(safeNewDate(ev.fecha_evento), "d MMM yyyy, HH:mm", { locale: es })}
                     </p>
                     {ev.descripcion && (
                       <p className="mt-0.5 text-xs text-muted-foreground">{ev.descripcion}</p>

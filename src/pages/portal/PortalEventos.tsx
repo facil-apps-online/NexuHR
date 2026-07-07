@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PortalSignatureDialog } from '@/components/portal/PortalSignatureDialog';
+import { PortalRecordAttachments } from '@/components/portal/PortalRecordAttachments';
 import { PenTool } from 'lucide-react';
 
 export default function PortalEventos() {
@@ -57,6 +58,7 @@ export default function PortalEventos() {
                   )}
                 </div>
               </div>
+              <PortalRecordAttachments module="eventos" recordId={p.id} />
             </Card>
           ))}
         </div>

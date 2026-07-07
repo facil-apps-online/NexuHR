@@ -51,6 +51,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   switchAssignment: (assignmentId: string) => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateProfileAvatar: (avatarUrl: string) => void;
   loading: boolean;
   supabaseClient: any;
 }
@@ -273,6 +274,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; supabaseClient:
     }
   };
 
+  const updateProfileAvatar = useCallback((avatarUrl: string) => {
+    setProfile(prev => prev ? { ...prev, avatarUrl } : null);
+  }, []);
+
   const overallLoading = loading || (!!tenantId && isTenantLoading);
 
   const contextValue = useMemo(() => ({
@@ -288,9 +293,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; supabaseClient:
     logout,
     switchAssignment,
     refreshUser,
+    updateProfileAvatar,
     loading: overallLoading,
     supabaseClient,
-  }), [session, user, profile, tenant, assignments, currentAssignment, overallLoading, refreshUser, supabaseClient]);
+  }), [session, user, profile, tenant, assignments, currentAssignment, overallLoading, refreshUser, updateProfileAvatar, supabaseClient]);
 
   return (
     <AuthContext.Provider value={contextValue}>

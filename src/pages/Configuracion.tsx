@@ -2,10 +2,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { CompanySettings } from "@/components/settings/CompanySettings";
-import { UserManagementSettings } from "@/components/settings/UserManagementSettings";
-import { AlertSettings } from "@/components/settings/AlertSettings";
-import { EmailTemplatesSettings } from "@/components/settings/EmailTemplatesSettings";
-import NotificationPreferencesSettings from "@/components/settings/NotificationPreferencesSettings";
+import { CommunicationSettings } from "@/components/settings/CommunicationSettings";
 import { MasterDataSettings } from "@/components/settings/MasterDataSettings";
 import { SignatureSettings } from "@/components/settings/SignatureSettings";
 import { AnnualParametersSettings } from "@/components/settings/AnnualParametersSettings";
@@ -13,11 +10,8 @@ import { PortalAccountsSettings } from "@/components/settings/PortalAccountsSett
 import { SubscriptionSettings } from "@/components/settings/SubscriptionSettings";
 import {
   Building2,
-  Users,
   Bell,
   Shield,
-  Mail,
-  BellRing,
   Database,
   PenTool,
   DollarSign,
@@ -38,7 +32,7 @@ export default function Configuracion() {
         </div>
 
         <Tabs defaultValue="empresa" className="space-y-6">
-          <TabsList className="flex w-full flex-wrap">
+          <TabsList className="flex w-full flex-wrap h-auto">
             <TabsTrigger value="empresa" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Empresa</span>
@@ -51,21 +45,10 @@ export default function Configuracion() {
               <PenTool className="h-4 w-4" />
               <span className="hidden sm:inline">Firmas</span>
             </TabsTrigger>
-            <TabsTrigger value="usuarios" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Usuarios</span>
-            </TabsTrigger>
-            <TabsTrigger value="alertas" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+
+            <TabsTrigger value="comunicaciones" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Alertas</span>
-            </TabsTrigger>
-            <TabsTrigger value="notificaciones" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-              <BellRing className="h-4 w-4" />
-              <span className="hidden sm:inline">Notificaciones</span>
-            </TabsTrigger>
-            <TabsTrigger value="correos" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-              <Mail className="h-4 w-4" />
-              <span className="hidden sm:inline">Correos</span>
+              <span className="hidden sm:inline">Comunicaciones</span>
             </TabsTrigger>
             <TabsTrigger value="seguridad" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <Shield className="h-4 w-4" />
@@ -97,20 +80,8 @@ export default function Configuracion() {
             <SignatureSettings />
           </TabsContent>
 
-          <TabsContent value="usuarios">
-            <UserManagementSettings />
-          </TabsContent>
-
-          <TabsContent value="alertas">
-            <AlertSettings />
-          </TabsContent>
-
-          <TabsContent value="notificaciones">
-            <NotificationPreferencesSettings />
-          </TabsContent>
-
-          <TabsContent value="correos">
-            <EmailTemplatesSettings />
+          <TabsContent value="comunicaciones">
+            <CommunicationSettings />
           </TabsContent>
 
           <TabsContent value="seguridad">

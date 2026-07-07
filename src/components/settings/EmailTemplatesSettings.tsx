@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,23 +13,27 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, FileText, GraduationCap, Users, Package, ClipboardCheck, Stethoscope, Info } from "lucide-react";
 import { toast } from "sonner";
 
-interface EmailTemplate {
+interface EmailModuleConfig {
+  enabled: boolean;
+  daysBeforeExpiry: number;
   subject: string;
   body: string;
 }
 
 interface EmailTemplates {
-  examenesVencer: EmailTemplate;
-  cursosVencer: EmailTemplate;
-  firmasPendientes: EmailTemplate;
-  comitesVencer: EmailTemplate;
-  dotacionEntrega: EmailTemplate;
-  evaluacionesPendientes: EmailTemplate;
-  vigilanciaSeguimiento: EmailTemplate;
+  examenesVencer: EmailModuleConfig;
+  cursosVencer: EmailModuleConfig;
+  firmasPendientes: EmailModuleConfig;
+  comitesVencer: EmailModuleConfig;
+  dotacionEntrega: EmailModuleConfig;
+  evaluacionesPendientes: EmailModuleConfig;
+  vigilanciaSeguimiento: EmailModuleConfig;
 }
 
 const defaultTemplates: EmailTemplates = {
   examenesVencer: {
+    enabled: true,
+    daysBeforeExpiry: 30,
     subject: "Recordatorio: Exámenes médicos próximos a vencer",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -40,6 +45,8 @@ Atentamente,
 {{nombre_empresa}}`,
   },
   cursosVencer: {
+    enabled: true,
+    daysBeforeExpiry: 30,
     subject: "Recordatorio: Certificación por vencer",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -51,6 +58,8 @@ Atentamente,
 {{nombre_empresa}}`,
   },
   firmasPendientes: {
+    enabled: false,
+    daysBeforeExpiry: 7,
     subject: "Documento pendiente de firma",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -62,6 +71,8 @@ Atentamente,
 {{nombre_empresa}}`,
   },
   comitesVencer: {
+    enabled: true,
+    daysBeforeExpiry: 60,
     subject: "Recordatorio: Vencimiento de comité",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -73,6 +84,8 @@ Atentamente,
 {{nombre_empresa}}`,
   },
   dotacionEntrega: {
+    enabled: false,
+    daysBeforeExpiry: 15,
     subject: "Recordatorio: Entrega de dotación programada",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -86,6 +99,8 @@ Atentamente,
 {{nombre_empresa}}`,
   },
   evaluacionesPendientes: {
+    enabled: false,
+    daysBeforeExpiry: 10,
     subject: "Recordatorio: Evaluación de desempeño pendiente",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -97,6 +112,8 @@ Atentamente,
 {{nombre_empresa}}`,
   },
   vigilanciaSeguimiento: {
+    enabled: true,
+    daysBeforeExpiry: 7,
     subject: "Recordatorio: Seguimiento de vigilancia epidemiológica",
     body: `Estimado/a {{nombre_empleado}},
 
@@ -164,37 +181,47 @@ const templateTypes = [
 ];
 
 export function EmailTemplatesSettings() {
-  const { profile } = useAuth();
+  const { currentAssignment, tenantId } = useAuth();
+  const platformId = currentAssignment?.platform_id;
   const queryClient = useQueryClient();
   const [templates, setTemplates] = useState<EmailTemplates>(defaultTemplates);
 
   const { data: tenantData, isLoading } = useQuery({
-    queryKey: ["tenant-email-templates", profile?.tenant_id],
+    queryKey: ["tenant-email-templates", tenantId],
     queryFn: async () => {
-      if (!profile?.tenant_id) return null;
+      if (!tenantId || !platformId) return null;
       const { data, error } = await supabase
         .from("tenant_settings")
         .select("settings_data")
-        .eq("tenant_id", profile.tenant_id)
+        .eq("tenant_id", tenantId)
+        .eq("platform_id", platformId)
+        .eq("setting_key", "email-templates")
         .maybeSingle();
       if (error) throw error;
       return data || { settings_data: {} };
     },
-    enabled: !!profile?.tenant_id,
+    enabled: !!tenantId && !!platformId,
   });
 
   useEffect(() => {
     if (tenantData?.settings_data) {
       const tenantSettings = tenantData.settings_data as Record<string, unknown>;
       if (tenantSettings.emailTemplates) {
-        setTemplates({ ...defaultTemplates, ...(tenantSettings.emailTemplates as EmailTemplates) });
+        const saved = tenantSettings.emailTemplates as Partial<EmailTemplates>;
+        const merged = { ...defaultTemplates };
+        for (const key of Object.keys(defaultTemplates) as (keyof EmailTemplates)[]) {
+          if (saved[key]) {
+            merged[key] = { ...merged[key], ...saved[key] };
+          }
+        }
+        setTemplates(merged);
       }
     }
   }, [tenantData]);
 
   const updateTemplatesMutation = useMutation({
     mutationFn: async (newTemplates: EmailTemplates) => {
-      if (!profile?.tenant_id) throw new Error("No tenant");
+      if (!tenantId || !platformId) throw new Error("No tenant");
       
       const currentSettings = (tenantData?.settings_data as Record<string, unknown>) || {};
       const updatedSettings = {
@@ -202,39 +229,30 @@ export function EmailTemplatesSettings() {
         emailTemplates: newTemplates,
       };
 
-      const platformId = import.meta.env.VITE_PLATFORM_ID;
-      if (!platformId) throw new Error("No platform_id found");
-
       const { error } = await supabase
         .from("tenant_settings")
         .upsert({ 
-          tenant_id: profile.tenant_id, 
+          tenant_id: tenantId, 
           platform_id: platformId,
+          setting_key: "email-templates",
           settings_data: JSON.parse(JSON.stringify(updatedSettings)) 
-        }, { onConflict: "tenant_id,platform_id" });
+        }, { onConflict: "tenant_id,platform_id,setting_key" });
       
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-email-templates"] });
-      toast.success("Plantillas de correo guardadas");
+      toast.success("Configuración de correos guardada");
     },
     onError: () => {
-      toast.error("Error al guardar las plantillas");
+      toast.error("Error al guardar la configuración");
     },
   });
 
-  const handleSubjectChange = (key: keyof EmailTemplates, value: string) => {
+  const handleFieldChange = (key: keyof EmailTemplates, field: string, value: any) => {
     setTemplates((prev) => ({
       ...prev,
-      [key]: { ...prev[key], subject: value },
-    }));
-  };
-
-  const handleBodyChange = (key: keyof EmailTemplates, value: string) => {
-    setTemplates((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], body: value },
+      [key]: { ...prev[key], [field]: value },
     }));
   };
 
@@ -259,9 +277,9 @@ export function EmailTemplatesSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Plantillas de Correo</CardTitle>
+        <CardTitle>Configuración de Correo</CardTitle>
         <CardDescription>
-          Personaliza los correos automáticos que envía el sistema para cada tipo de notificación
+          Activa el envío de correos por módulo, define los días de anticipación y personaliza las plantillas
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -280,7 +298,7 @@ export function EmailTemplatesSettings() {
         <Accordion type="single" collapsible className="w-full">
           {templateTypes.map((template) => {
             const Icon = template.icon;
-            const currentTemplate = templates[template.key];
+            const config = templates[template.key];
             
             return (
               <AccordionItem key={template.key} value={template.key}>
@@ -289,15 +307,42 @@ export function EmailTemplatesSettings() {
                     <div className="rounded-lg bg-primary/10 p-2">
                       <Icon className="h-4 w-4 text-primary" />
                     </div>
-                    <div className="text-left">
+                    <div className="text-left flex-1">
                       <p className="font-medium">{template.title}</p>
                       <p className="text-sm text-muted-foreground font-normal">
                         {template.description}
                       </p>
                     </div>
+                    <Badge variant={config.enabled ? "default" : "secondary"} className="shrink-0">
+                      {config.enabled ? "Activo" : "Inactivo"}
+                    </Badge>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-border">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`enabled-${template.key}`}
+                        checked={config.enabled}
+                        onCheckedChange={(checked) => handleFieldChange(template.key, "enabled", checked)}
+                      />
+                      <Label htmlFor={`enabled-${template.key}`}>Enviar correo</Label>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`days-${template.key}`}>Días de anticipación</Label>
+                      <Input
+                        id={`days-${template.key}`}
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={config.daysBeforeExpiry}
+                        onChange={(e) => handleFieldChange(template.key, "daysBeforeExpiry", parseInt(e.target.value) || 1)}
+                        className="w-24"
+                        disabled={!config.enabled}
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap gap-2">
                     <span className="text-sm text-muted-foreground">Variables:</span>
                     {template.variables.map((variable) => (
@@ -311,8 +356,8 @@ export function EmailTemplatesSettings() {
                     <Label htmlFor={`subject-${template.key}`}>Asunto</Label>
                     <Input
                       id={`subject-${template.key}`}
-                      value={currentTemplate.subject}
-                      onChange={(e) => handleSubjectChange(template.key, e.target.value)}
+                      value={config.subject}
+                      onChange={(e) => handleFieldChange(template.key, "subject", e.target.value)}
                       placeholder="Asunto del correo"
                     />
                   </div>
@@ -321,8 +366,8 @@ export function EmailTemplatesSettings() {
                     <Label htmlFor={`body-${template.key}`}>Cuerpo del mensaje</Label>
                     <Textarea
                       id={`body-${template.key}`}
-                      value={currentTemplate.body}
-                      onChange={(e) => handleBodyChange(template.key, e.target.value)}
+                      value={config.body}
+                      onChange={(e) => handleFieldChange(template.key, "body", e.target.value)}
                       placeholder="Contenido del correo"
                       rows={8}
                       className="font-mono text-sm"
@@ -352,7 +397,7 @@ export function EmailTemplatesSettings() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Guardar plantillas
+          Guardar configuración
         </Button>
       </CardContent>
     </Card>

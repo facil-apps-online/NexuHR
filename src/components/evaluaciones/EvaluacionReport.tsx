@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Loader2, Star, Printer, TrendingUp, TrendingDown, Target, User, Calendar, FileText, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -177,7 +178,7 @@ export function EvaluacionReport({ open, onOpenChange, evaluationId }: Evaluacio
                   <div>
                     <p className="text-muted-foreground">Fecha / Período</p>
                     <p className="font-medium">
-                      {format(new Date(evaluation.evaluation_date), "d MMM yyyy", { locale: es })}
+                      {format(safeNewDate(evaluation.evaluation_date), "d MMM yyyy", { locale: es })}
                     </p>
                     <p className="text-xs text-muted-foreground">{evaluation.period}</p>
                   </div>

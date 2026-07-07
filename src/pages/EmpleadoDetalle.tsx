@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit, Loader2 } from "lucide-react";
+import { useGoogleDriveImage } from "@/hooks/useGoogleDriveImage";
 import { EmpleadoInfoGeneral } from "@/components/empleados/EmpleadoInfoGeneral";
 import { EmpleadoExamenes } from "@/components/empleados/EmpleadoExamenes";
 import { EmpleadoCursos } from "@/components/empleados/EmpleadoCursos";
@@ -34,6 +36,9 @@ export default function EmpleadoDetalle() {
     },
     enabled: !!id,
   });
+
+  const { displayUrl: photoUrl } = useGoogleDriveImage(employee?.photo_url || undefined);
+  const initials = `${employee?.first_name?.[0] ?? ''}${employee?.last_name?.[0] ?? ''}`.toUpperCase();
 
   if (isLoading) {
     return (
@@ -68,9 +73,10 @@ export default function EmpleadoDetalle() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-semibold text-primary">
-                {employee.first_name?.[0]}{employee.last_name?.[0]}
-              </div>
+              <Avatar className="h-16 w-16 border bg-primary/10">
+                <AvatarImage src={photoUrl || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">{initials || '?'}</AvatarFallback>
+              </Avatar>
               <div>
                 <h1 className="text-2xl font-bold">
                   {employee.first_name} {employee.last_name}
@@ -81,7 +87,7 @@ export default function EmpleadoDetalle() {
               </div>
             </div>
           </div>
-          <Button className="gradient-primary">
+          <Button className="gradient-primary" onClick={() => navigate("/empleados", { state: { editEmployeeId: employee.id } })}>
             <Edit className="mr-2 h-4 w-4" />
             Editar Empleado
           </Button>

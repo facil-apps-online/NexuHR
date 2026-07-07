@@ -41,7 +41,7 @@ interface UserWithRoles extends Profile {
 }
 
 export function UserManagementSettings() {
-  const { profile } = useAuth();
+  const { currentAssignment, tenantId } = useAuth();
   const queryClient = useQueryClient();
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,15 +53,15 @@ export function UserManagementSettings() {
 
   // Fetch users
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["users-management", profile?.tenant_id],
+    queryKey: ["users-management", tenantId],
     queryFn: async () => {
-      if (!profile?.tenant_id) return [];
+      if (!tenantId) return [];
 
       // Fetch profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("tenant_id", profile.tenant_id)
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
 
       if (profilesError) throw profilesError;
@@ -87,7 +87,7 @@ export function UserManagementSettings() {
           .map((ur) => ({ role_id: ur.role_id, roles: ur.roles as Role })),
       })) as UserWithRoles[];
     },
-    enabled: !!profile?.tenant_id,
+    enabled: !!tenantId,
   });
 
   // Toggle user active status
@@ -113,7 +113,7 @@ export function UserManagementSettings() {
   // Invite user mutation
   const inviteUserMutation = useMutation({
     mutationFn: async (data: { email: string; firstName: string; lastName: string }) => {
-      if (!profile?.tenant_id) throw new Error("No tenant found");
+      if (!tenantId) throw new Error("No tenant found");
 
       // For now, we'll create a profile entry as "invited"
       // In a real scenario, you'd send an invitation email
@@ -122,7 +122,7 @@ export function UserManagementSettings() {
         email: data.email,
         first_name: data.firstName,
         last_name: data.lastName,
-        tenant_id: profile.tenant_id,
+        tenant_id: tenantId,
         active: false, // Inactive until they accept the invite
       });
 

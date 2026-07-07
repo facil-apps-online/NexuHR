@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/ui/responsive-table";
 import { Search, UserPlus, Filter, MoreVertical, Loader2, List, Network, Upload, Download } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useGoogleDriveImage } from "@/hooks/useGoogleDriveImage";
 import * as XLSX from "xlsx";
 import {
   DropdownMenu,
@@ -18,25 +20,48 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { EmpleadoForm, EmployeeFormData } from "@/components/empleados/EmpleadoForm";
 import { Organigrama } from "@/components/empleados/Organigrama";
 import { BulkUpload } from "@/components/empleados/BulkUpload";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+function EmployeeNameCell({ employee }: { employee: any }) {
+  const { displayUrl } = useGoogleDriveImage(employee?.photo_url || undefined, employee?.tenant_id);
+  const initials = `${employee?.first_name?.[0] ?? ''}${employee?.last_name?.[0] ?? ''}`.toUpperCase();
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="h-8 w-8 border bg-primary/10">
+        <AvatarImage src={displayUrl || undefined} />
+        <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials || '?'}</AvatarFallback>
+      </Avatar>
+      <span className="font-medium">{employee?.first_name} {employee?.last_name}</span>
+    </div>
+  );
+}
+
 export default function Empleados() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, currentAssignment } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("list");
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
+  useEffect(() => {
+    const editId = (location.state as any)?.editEmployeeId;
+    if (editId) {
+      setEditingEmployee(editId);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ["employees"],
@@ -53,15 +78,14 @@ export default function Empleados() {
 
   const createMutation = useMutation({
     mutationFn: async (data: EmployeeFormData) => {
-      if (!profile?.tenant_id) throw new Error("No tenant_id");
+      if (!currentAssignment?.tenant_id) throw new Error("No tenant_id");
       
-      const { error } = await supabase.from("employees").insert([{
+      const employeeData = {
         document_type: data.document_type,
         document_number: data.document_number,
         first_name: data.first_name,
         last_name: data.last_name,
         active: data.active,
-        tenant_id: profile.tenant_id,
         email: data.email || null,
         phone: data.phone || null,
         birth_date: data.birth_date || null,
@@ -74,9 +98,19 @@ export default function Empleados() {
         city: data.city || null,
         emergency_contact: data.emergency_contact || null,
         emergency_phone: data.emergency_phone || null,
-      }]);
+      };
 
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke("tenant-actions", {
+        body: {
+          action: "create_employee",
+          payload: {
+            employee_data: employeeData
+          }
+        }
+      });
+
+      if (error) throw new Error(error.message);
+      if (result?.error) throw new Error(result.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -147,14 +181,7 @@ export default function Empleados() {
       key: "name",
       label: "Nombre",
       primary: true,
-      render: (emp) => (
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-            {emp.first_name?.[0]}{emp.last_name?.[0]}
-          </div>
-          {emp.first_name} {emp.last_name}
-        </div>
-      ),
+      render: (emp) => <EmployeeNameCell employee={emp} />,
     },
     {
       key: "document",

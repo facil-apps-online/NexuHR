@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { EmployeePortalLayout } from '@/components/portal/EmployeePortalLayout';
+import { PortalRecordAttachments } from '@/components/portal/PortalRecordAttachments';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,7 @@ export default function PortalEvaluaciones() {
                     </Button>
                   </div>
                 </div>
+                <PortalRecordAttachments module="evaluaciones" recordId={ev.id} />
               </Card>
             );
           })}

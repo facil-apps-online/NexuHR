@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,10 +13,17 @@ import {
   CheckCircle,
   Clock,
   Loader2,
-  FileSignature,
   Shirt,
   Calendar,
   ClipboardCheck,
+  BookOpen,
+  Monitor,
+  HeartPulse,
+  Stethoscope,
+  GraduationCap,
+  ShieldCheck,
+  Users,
+  FileSignature
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -34,84 +41,229 @@ interface PendingSignature {
 const moduleLabels: Record<string, { label: string; icon: any; className: string }> = {
   eventos: { label: "Eventos", icon: Calendar, className: "bg-primary/10 text-primary" },
   dotacion: { label: "Dotación", icon: Shirt, className: "bg-warning/10 text-warning" },
-  evaluaciones_desempeno: { label: "Eval. Desempeño", icon: ClipboardCheck, className: "bg-info/10 text-info" },
+  evaluaciones: { label: "Eval. Desempeño", icon: ClipboardCheck, className: "bg-info/10 text-info" },
+  reglamento: { label: "Reglamentos", icon: BookOpen, className: "bg-success/10 text-success" },
+  activos_fijos: { label: "Activos Fijos", icon: Monitor, className: "bg-purple-500/10 text-purple-500" },
+  incapacidades: { label: "Incapacidades", icon: HeartPulse, className: "bg-red-500/10 text-red-500" },
+  examenes: { label: "Exámenes", icon: Stethoscope, className: "bg-blue-500/10 text-blue-500" },
+  cursos: { label: "Cursos", icon: GraduationCap, className: "bg-orange-500/10 text-orange-500" },
+  vigilancias: { label: "Vigilancias", icon: ShieldCheck, className: "bg-teal-500/10 text-teal-500" },
+  empleados: { label: "Empleados", icon: Users, className: "bg-gray-500/10 text-gray-500" },
 };
 
 export default function Firmas() {
-  const { profile } = useAuth();
+  const { profile, currentAssignment } = useAuth();
+  const tenantId = profile?.tenant_id;
+  const platformId = currentAssignment?.platform_id;
   const [signatureTarget, setSignatureTarget] = useState<PendingSignature | null>(null);
 
-  // Fetch pending event signatures
-  const { data: eventPending, isLoading: loadingEvents } = useQuery({
-    queryKey: ["pending-signatures-events"],
+  // 1. Fetch Tenant Settings for signature modules
+  const { data: settings } = useQuery({
+    queryKey: ["tenant-settings-signatures", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("event_participants" as any)
-        .select("id, event_id, signed, employee:employees(id, first_name, last_name), event:events(title, event_date)")
-        .eq("signed", false);
-      if (error) throw error;
-      return (data as any[]).map((p) => ({
-        id: p.id,
-        module: "eventos",
-        recordId: p.id,
-        employeeId: p.employee?.id,
-        employeeName: p.employee ? `${p.employee.first_name} ${p.employee.last_name}` : "Desconocido",
-        source: p.event?.title || "Evento",
-        date: p.event?.event_date || "",
-      }));
+      if (!tenantId || !platformId) return [];
+      const { data } = await supabase
+        .from("tenant_settings")
+        .select("settings_data")
+        .eq("tenant_id", tenantId)
+        .eq("platform_id", platformId)
+        .eq("setting_key", "signatures")
+        .maybeSingle();
+      return ((data?.settings_data as any)?.signature_modules || []) as string[];
     },
+    enabled: !!tenantId && !!platformId,
   });
 
-  // Fetch pending dotacion signatures
-  const { data: dotacionPending, isLoading: loadingDotacion } = useQuery({
-    queryKey: ["pending-signatures-dotacion"],
+  const enabledModules = settings || [];
+
+  // Helper to fetch all signed record IDs for a specific module
+  const fetchSignedIds = async (moduleCode: string) => {
+    if (!tenantId) return new Set<string>();
+    
+    const modulesToFetch = moduleCode === 'reglamento' ? ['reglamento', 'reglamentos'] : [moduleCode];
+    
+    const { data } = await supabase
+      .from("signatures" as any)
+      .select("record_id")
+      .eq("tenant_id", tenantId)
+      .in("module", modulesToFetch);
+    return new Set((data || []).map((s: any) => s.record_id));
+  };
+
+  // 2. Query for each module (only if enabled)
+  const { data: eventPending, isLoading: l1 } = useQuery({
+    queryKey: ["pending-signatures", "eventos"],
     queryFn: async () => {
+      const signedIds = await fetchSignedIds("eventos");
+      const { data, error } = await supabase
+        .from("event_participants" as any)
+        .select("id, employee:employees(id, first_name, last_name), event:events(title, event_date)");
+      if (error) throw error;
+      return (data as any[])
+        .filter(p => !signedIds.has(p.id))
+        .map(p => ({
+          id: p.id, module: "eventos", recordId: p.id,
+          employeeId: p.employee?.id, employeeName: p.employee ? `${p.employee.first_name} ${p.employee.last_name}` : "Desconocido",
+          source: p.event?.title || "Evento", date: p.event?.event_date || "",
+        }));
+    },
+    enabled: enabledModules.includes("eventos"),
+  });
+
+  const { data: dotacionPending, isLoading: l2 } = useQuery({
+    queryKey: ["pending-signatures", "dotacion"],
+    queryFn: async () => {
+      const signedIds = await fetchSignedIds("dotacion");
       const { data, error } = await supabase
         .from("dotacion")
-        .select("id, item_name, delivery_date, employee_id, employees(id, first_name, last_name)")
-        .is("signature_url", null);
+        .select("id, item_name, delivery_date, employee_id, employees(id, first_name, last_name)");
       if (error) throw error;
-      return (data as any[]).map((d) => ({
-        id: d.id,
-        module: "dotacion",
-        recordId: d.id,
-        employeeId: d.employees?.id || d.employee_id,
-        employeeName: d.employees ? `${d.employees.first_name} ${d.employees.last_name}` : "Desconocido",
-        source: d.item_name,
-        date: d.delivery_date || "",
-      }));
+      return (data as any[])
+        .filter(d => !signedIds.has(d.id))
+        .map(d => ({
+          id: d.id, module: "dotacion", recordId: d.id,
+          employeeId: d.employees?.id || d.employee_id, employeeName: d.employees ? `${d.employees.first_name} ${d.employees.last_name}` : "Desconocido",
+          source: d.item_name, date: d.delivery_date || "",
+        }));
     },
+    enabled: enabledModules.includes("dotacion"),
+  });
+
+  const { data: reglamentosPending, isLoading: l3 } = useQuery({
+    queryKey: ["pending-signatures", "reglamento"],
+    queryFn: async () => {
+      const signedIds = await fetchSignedIds("reglamento");
+      const { data, error } = await supabase
+        .from("regulation_acknowledgments")
+        .select("id, employee_id, employees(id, first_name, last_name), regulations(title, requires_signature)");
+      if (error) throw error;
+      return (data as any[])
+        .filter(r => r.regulations?.requires_signature !== false && !signedIds.has(r.id))
+        .map(r => ({
+          id: r.id, module: "reglamento", recordId: r.id,
+          employeeId: r.employees?.id || r.employee_id, employeeName: r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : "Desconocido",
+          source: r.regulations?.title || "Reglamento", date: "",
+        }));
+    },
+    enabled: enabledModules.includes("reglamento"),
+  });
+
+  const { data: evaluacionesPending, isLoading: l4 } = useQuery({
+    queryKey: ["pending-signatures", "evaluaciones"],
+    queryFn: async () => {
+      const signedIds = await fetchSignedIds("evaluaciones");
+      const { data, error } = await supabase
+        .from("evaluations" as any)
+        .select("id, period, evaluation_date, employee_id, employees(id, first_name, last_name)");
+      if (error) throw error;
+      return (data as any[])
+        .filter(e => !signedIds.has(e.id))
+        .map(e => ({
+          id: e.id, module: "evaluaciones", recordId: e.id,
+          employeeId: e.employees?.id || e.employee_id, employeeName: e.employees ? `${e.employees.first_name} ${e.employees.last_name}` : "Desconocido",
+          source: `Evaluación ${e.period || ""}`, date: e.evaluation_date || "",
+        }));
+    },
+    enabled: enabledModules.includes("evaluaciones"),
+  });
+
+  const { data: examenesPending, isLoading: l5 } = useQuery({
+    queryKey: ["pending-signatures", "examenes"],
+    queryFn: async () => {
+      const signedIds = await fetchSignedIds("examenes");
+      const { data, error } = await supabase
+        .from("exams" as any)
+        .select("id, exam_type, exam_date, employee_id, employees(id, first_name, last_name)");
+      if (error) throw error;
+      return (data as any[])
+        .filter(e => !signedIds.has(e.id))
+        .map(e => ({
+          id: e.id, module: "examenes", recordId: e.id,
+          employeeId: e.employees?.id || e.employee_id, employeeName: e.employees ? `${e.employees.first_name} ${e.employees.last_name}` : "Desconocido",
+          source: `Examen: ${e.exam_type}`, date: e.exam_date || "",
+        }));
+    },
+    enabled: enabledModules.includes("examenes"),
+  });
+
+  const { data: incapacidadesPending, isLoading: l6 } = useQuery({
+    queryKey: ["pending-signatures", "incapacidades"],
+    queryFn: async () => {
+      const signedIds = await fetchSignedIds("incapacidades");
+      const { data, error } = await supabase
+        .from("incapacidades" as any)
+        .select("id, tipo, fecha_inicio, employee_id, employees(id, first_name, last_name)");
+      if (error) throw error;
+      return (data as any[])
+        .filter(i => !signedIds.has(i.id))
+        .map(i => ({
+          id: i.id, module: "incapacidades", recordId: i.id,
+          employeeId: i.employees?.id || i.employee_id, employeeName: i.employees ? `${i.employees.first_name} ${i.employees.last_name}` : "Desconocido",
+          source: `Incapacidad: ${i.tipo}`, date: i.fecha_inicio || "",
+        }));
+    },
+    enabled: enabledModules.includes("incapacidades"),
+  });
+
+  const { data: activosPending, isLoading: l7 } = useQuery({
+    queryKey: ["pending-signatures", "activos_fijos"],
+    queryFn: async () => {
+      const signedIds = await fetchSignedIds("activos_fijos");
+      const { data, error } = await supabase
+        .from("activos_fijos" as any)
+        .select("id, modelo, empleado_asignado_id, employees!activos_fijos_empleado_asignado_id_fkey(id, first_name, last_name)")
+        .not("empleado_asignado_id", "is", null);
+      if (error) throw error;
+      return (data as any[])
+        .filter(a => !signedIds.has(a.id))
+        .map(a => ({
+          id: a.id, module: "activos_fijos", recordId: a.id,
+          employeeId: a.employees?.id || a.empleado_asignado_id, employeeName: a.employees ? `${a.employees.first_name} ${a.employees.last_name}` : "Desconocido",
+          source: `Activo: ${a.modelo}`, date: "",
+        }));
+    },
+    enabled: enabledModules.includes("activos_fijos"),
   });
 
   // Fetch completed signatures
   const { data: completedSignatures, isLoading: loadingCompleted } = useQuery({
-    queryKey: ["completed-signatures"],
+    queryKey: ["signatures", tenantId],
     queryFn: async () => {
+      if (!tenantId) return [];
       const { data, error } = await supabase
         .from("signatures" as any)
         .select("*, employee:employees(first_name, last_name)")
+        .eq("tenant_id", tenantId)
         .order("signed_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       return data as any[];
     },
+    enabled: !!tenantId,
   });
 
-  const allPending = [...(eventPending || []), ...(dotacionPending || [])];
-  const isLoading = loadingEvents || loadingDotacion;
+  const allPending = useMemo(() => [
+    ...(eventPending || []),
+    ...(dotacionPending || []),
+    ...(reglamentosPending || []),
+    ...(evaluacionesPending || []),
+    ...(examenesPending || []),
+    ...(incapacidadesPending || []),
+    ...(activosPending || []),
+  ], [eventPending, dotacionPending, reglamentosPending, evaluacionesPending, examenesPending, incapacidadesPending, activosPending]);
+
+  const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
 
   const pendingByModule = (mod: string) => allPending.filter((p) => p.module === mod);
 
   const stats = {
     total: allPending.length,
-    eventos: pendingByModule("eventos").length,
-    dotacion: pendingByModule("dotacion").length,
     completed: completedSignatures?.length || 0,
   };
 
   const renderPendingCard = (item: PendingSignature) => {
     const modInfo = moduleLabels[item.module] || moduleLabels.eventos;
-    const ModIcon = modInfo.icon;
+    const ModIcon = modInfo.icon || FileSignature;
     return (
       <div
         key={`${item.module}-${item.id}`}
@@ -135,12 +287,8 @@ export default function Firmas() {
           <Badge variant="outline" className="text-xs">
             {modInfo.label}
           </Badge>
-          <Button
-            size="sm"
-            onClick={() => setSignatureTarget(item)}
-          >
-            <PenTool className="mr-1 h-3 w-3" />
-            Firmar
+          <Button size="sm" onClick={() => setSignatureTarget(item)}>
+            <PenTool className="mr-1 h-3 w-3" /> Firmar
           </Button>
         </div>
       </div>
@@ -158,7 +306,7 @@ export default function Firmas() {
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-4">
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
           <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
             <div className="rounded-lg bg-warning/10 p-3 text-warning">
               <Clock className="h-6 w-6" />
@@ -166,24 +314,6 @@ export default function Firmas() {
             <div>
               <p className="text-2xl font-bold">{stats.total}</p>
               <p className="text-sm text-muted-foreground">Pendientes totales</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
-            <div className="rounded-lg bg-primary/10 p-3 text-primary">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.eventos}</p>
-              <p className="text-sm text-muted-foreground">Eventos</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
-            <div className="rounded-lg bg-warning/10 p-3 text-warning">
-              <Shirt className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.dotacion}</p>
-              <p className="text-sm text-muted-foreground">Dotación</p>
             </div>
           </div>
           <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
@@ -195,6 +325,15 @@ export default function Firmas() {
               <p className="text-sm text-muted-foreground">Firmas registradas</p>
             </div>
           </div>
+          <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
+            <div className="rounded-lg bg-primary/10 p-3 text-primary">
+              <FileSignature className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{enabledModules.length}</p>
+              <p className="text-sm text-muted-foreground">Módulos activos</p>
+            </div>
+          </div>
         </div>
 
         {isLoading ? (
@@ -203,10 +342,17 @@ export default function Firmas() {
           </div>
         ) : (
           <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto gap-1">
               <TabsTrigger value="all">Todas ({allPending.length})</TabsTrigger>
-              <TabsTrigger value="eventos">Eventos ({stats.eventos})</TabsTrigger>
-              <TabsTrigger value="dotacion">Dotación ({stats.dotacion})</TabsTrigger>
+              {enabledModules.map(mod => {
+                const label = moduleLabels[mod]?.label || mod;
+                const count = pendingByModule(mod).length;
+                return (
+                  <TabsTrigger key={mod} value={mod}>
+                    {label} ({count})
+                  </TabsTrigger>
+                );
+              })}
               <TabsTrigger value="completed">Completadas ({stats.completed})</TabsTrigger>
             </TabsList>
 
@@ -223,21 +369,15 @@ export default function Firmas() {
               )}
             </TabsContent>
 
-            <TabsContent value="eventos" className="space-y-3">
-              {pendingByModule("eventos").length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Sin firmas de eventos pendientes</p>
-              ) : (
-                pendingByModule("eventos").map(renderPendingCard)
-              )}
-            </TabsContent>
-
-            <TabsContent value="dotacion" className="space-y-3">
-              {pendingByModule("dotacion").length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Sin firmas de dotación pendientes</p>
-              ) : (
-                pendingByModule("dotacion").map(renderPendingCard)
-              )}
-            </TabsContent>
+            {enabledModules.map(mod => (
+              <TabsContent key={`tab-${mod}`} value={mod} className="space-y-3">
+                {pendingByModule(mod).length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Sin firmas pendientes</p>
+                ) : (
+                  pendingByModule(mod).map(renderPendingCard)
+                )}
+              </TabsContent>
+            ))}
 
             <TabsContent value="completed" className="space-y-3">
               {loadingCompleted ? (
@@ -249,7 +389,7 @@ export default function Firmas() {
               ) : (
                 completedSignatures.map((s: any) => {
                   const modInfo = moduleLabels[s.module] || moduleLabels.eventos;
-                  const ModIcon = modInfo.icon;
+                  const ModIcon = modInfo?.icon || FileSignature;
                   return (
                     <div
                       key={s.id}
@@ -269,7 +409,7 @@ export default function Firmas() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">{modInfo.label}</Badge>
+                        <Badge variant="outline" className="text-xs">{modInfo?.label || s.module}</Badge>
                         <Badge className="text-xs bg-success/10 text-success border-success/20">
                           {s.method === "canvas" ? "Canvas" : "Confirmación"}
                         </Badge>
@@ -283,7 +423,7 @@ export default function Firmas() {
         )}
       </div>
 
-      {signatureTarget && profile?.tenant_id && (
+      {signatureTarget && tenantId && (
         <SignatureDialog
           open={!!signatureTarget}
           onOpenChange={(open) => { if (!open) setSignatureTarget(null); }}
@@ -291,7 +431,7 @@ export default function Firmas() {
           recordId={signatureTarget.recordId}
           employeeId={signatureTarget.employeeId}
           employeeName={signatureTarget.employeeName}
-          tenantId={profile.tenant_id}
+          tenantId={tenantId}
         />
       )}
     </MainLayout>

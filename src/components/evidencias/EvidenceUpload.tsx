@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { coreSupabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -64,20 +65,38 @@ export function EvidenceUpload({ module, recordId, employeeId, readOnly = false 
     mutationFn: async (file: globalThis.File) => {
       if (!profile?.tenant_id) throw new Error("Sin tenant");
 
-      const ext = file.name.split(".").pop();
-      const path = `${profile.tenant_id}/${module}/${recordId}/${Date.now()}.${ext}`;
+      const base64data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = error => reject(error);
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from("evidences")
-        .upload(path, file);
-      if (uploadError) throw uploadError;
+      const platformId = import.meta.env.VITE_PLATFORM_ID;
+      const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+        body: {
+          platform_id: platformId,
+          tenantId: profile.tenant_id,
+          fileName: `${Date.now()}_${file.name}`,
+          fileBase64: base64data,
+          mimeType: file.type || "application/octet-stream",
+          path_components: ['Soportes', 'Evidencias', module, recordId]
+        }
+      });
+
+      if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || uploadData?.error || "Error al subir evidencia");
+      const fileId = uploadData.fileId;
+      const filePath = `https://drive.google.com/uc?id=${fileId}`;
 
       const { error: dbError } = await supabase.from("evidences").insert({
         tenant_id: profile.tenant_id,
         module,
         record_id: recordId,
         employee_id: employeeId || null,
-        file_url: path,
+        file_url: filePath,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
@@ -94,7 +113,16 @@ export function EvidenceUpload({ module, recordId, employeeId, readOnly = false 
 
   const deleteMutation = useMutation({
     mutationFn: async ({ id, fileUrl }: { id: string; fileUrl: string }) => {
-      await supabase.storage.from("evidences").remove([fileUrl]);
+      const fileId = fileUrl.includes("id=") ? fileUrl.split("id=")[1] : null;
+      if (fileId) {
+        await coreSupabase.functions.invoke('google-drive-delete', {
+          body: {
+            fileId,
+            integration_owner_tenant_id: profile?.tenant_id,
+            platform_id: import.meta.env.VITE_PLATFORM_ID,
+          }
+        });
+      }
       const { error } = await supabase.from("evidences").delete().eq("id", id);
       if (error) throw error;
     },
@@ -117,8 +145,7 @@ export function EvidenceUpload({ module, recordId, employeeId, readOnly = false 
   };
 
   const handlePreview = (fileUrl: string) => {
-    const { data } = supabase.storage.from("evidences").getPublicUrl(fileUrl);
-    setPreviewUrl(data.publicUrl);
+    setPreviewUrl(fileUrl);
   };
 
   const getFileIcon = (fileType: string | null) => {

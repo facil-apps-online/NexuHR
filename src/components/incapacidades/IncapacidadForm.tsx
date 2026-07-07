@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { coreSupabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -98,11 +99,33 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
       setSaving(true);
       let documentUrl = incapacidad?.documento_url ?? null;
 
+      let documentoSize = incapacidad?.documento_size ?? null;
+
       if (file) {
-        const path = `${employeeId}/${Date.now()}_${file.name}`;
-        const { error: upErr } = await supabase.storage.from('incapacidades').upload(path, file, { upsert: false });
-        if (upErr) throw upErr;
-        documentUrl = path;
+        const base64data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]);
+          };
+          reader.onerror = error => reject(error);
+        });
+
+        const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+          body: {
+            platform_id: import.meta.env.VITE_PLATFORM_ID,
+            tenantId: emp.tenant_id,
+            fileName: `${Date.now()}_${file.name}`,
+            fileBase64: base64data,
+            mimeType: file.type || "application/octet-stream",
+            path_components: ['Soportes', 'Evidencias', 'Incapacidades', employeeId]
+          }
+        });
+
+        if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || uploadData?.error || "Error al subir documento");
+        documentUrl = `https://drive.google.com/uc?id=${uploadData.fileId}`;
+        documentoSize = file.size;
       }
 
       const payload: any = {
@@ -119,6 +142,7 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
         estado,
         notas_internas: notas || null,
         documento_url: documentUrl,
+        documento_size: documentoSize,
       };
 
       if (incapacidad?.id) {

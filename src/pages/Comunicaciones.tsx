@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 import { 
   Plus, 
   Search, 
@@ -22,98 +24,50 @@ import {
   ListChecks,
   Clock,
   CheckCircle2,
-  Settings
+  Settings,
+  Trash2
 } from "lucide-react";
-
-const comunicaciones = [
-  {
-    id: 1,
-    asunto: "Actualización de políticas de seguridad",
-    lista: "Todos los empleados",
-    tipoLista: "general",
-    destinatarios: 156,
-    enviados: 156,
-    leidos: 98,
-    fecha: "2024-01-15",
-    estado: "Enviado",
-  },
-  {
-    id: 2,
-    asunto: "Recordatorio capacitación alturas",
-    lista: "Operadores de Planta",
-    tipoLista: "cargo",
-    destinatarios: 45,
-    enviados: 45,
-    leidos: 32,
-    fecha: "2024-01-14",
-    estado: "Enviado",
-  },
-  {
-    id: 3,
-    asunto: "Reunión mensual de área",
-    lista: "Departamento Producción",
-    tipoLista: "departamento",
-    destinatarios: 38,
-    enviados: 0,
-    leidos: 0,
-    fecha: "2024-01-16",
-    estado: "Programado",
-  },
-  {
-    id: 4,
-    asunto: "Encuesta de clima laboral",
-    lista: "Lista personalizada: Supervisores",
-    tipoLista: "personalizada",
-    destinatarios: 12,
-    enviados: 12,
-    leidos: 8,
-    fecha: "2024-01-13",
-    estado: "Enviado",
-  },
-];
-
-const listas = [
-  { id: 1, nombre: "Todos los empleados", tipo: "General", miembros: 156 },
-  { id: 2, nombre: "Operadores de Planta", tipo: "Por Cargo", miembros: 45 },
-  { id: 3, nombre: "Departamento Producción", tipo: "Por Departamento", miembros: 38 },
-  { id: 4, nombre: "Supervisores", tipo: "Personalizada", miembros: 12 },
-  { id: 5, nombre: "Personal Administrativo", tipo: "Por Área", miembros: 28 },
-  { id: 6, nombre: "Comité COPASST", tipo: "Personalizada", miembros: 8 },
-];
+import { useCommunications, type Communication } from "@/hooks/useCommunications";
+import { useDistributionLists, type DistributionList } from "@/hooks/useDistributionLists";
+import { DistributionListFormModal } from "@/components/comunicaciones/DistributionListFormModal";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const estadoColor = {
   Enviado: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
   Programado: "bg-blue-500/10 text-blue-600 border-blue-200",
   Borrador: "bg-slate-500/10 text-slate-600 border-slate-200",
+  Leido: "bg-indigo-500/10 text-indigo-600 border-indigo-200",
   Fallido: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const columns: ResponsiveColumn<(typeof comunicaciones)[number]>[] = [
+const columns: ResponsiveColumn<Communication>[] = [
   {
     key: "subject",
     label: "Asunto",
     primary: true,
     subtitle: true,
-    render: (item) => item.asunto,
+    render: (item) => item.subject,
   },
   {
     key: "type",
     label: "Tipo",
-    render: (item) => item.lista,
+    render: (item) => item.communication_type,
   },
   {
     key: "recipients",
     label: "Destinatarios",
     hideOnMobile: true,
-    render: (item) => item.destinatarios,
+    render: (item) => item.recipients?.length || 0,
   },
   {
     key: "sent",
     label: "Enviados",
     hideOnMobile: true,
     render: (item) =>
-      item.enviados > 0 ? (
-        <span className="text-emerald-600">{item.enviados}</span>
+      item.status === "enviado" || item.status === "leido" ? (
+        <span className="text-emerald-600">{item.recipients?.length || 0}</span>
       ) : (
         <span className="text-muted-foreground">-</span>
       ),
@@ -122,35 +76,71 @@ const columns: ResponsiveColumn<(typeof comunicaciones)[number]>[] = [
     key: "read",
     label: "Leídos",
     hideOnMobile: true,
-    render: (item) =>
-      item.leidos > 0 ? (
+    render: (item) => {
+      const enviados = item.recipients?.length || 0;
+      const leidos = item.reads_count || 0;
+      return (item.status === "enviado" || item.status === "leido") && enviados > 0 ? (
         <span>
-          {item.leidos} ({Math.round((item.leidos / item.enviados) * 100)}%)
+          {leidos} ({Math.round((leidos / enviados) * 100)}%)
         </span>
       ) : (
         <span className="text-muted-foreground">-</span>
-      ),
+      );
+    },
   },
   {
     key: "date",
     label: "Fecha",
-    render: (item) => item.fecha,
+    render: (item) => item.created_at ? format(new Date(item.created_at), 'dd MMM yyyy', { locale: es }) : '-',
   },
   {
     key: "status",
     label: "Estado",
-    render: (item) => (
+    render: (item) => {
+      const statusCapitalized = item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "Borrador";
+      return (
       <Badge
         variant="outline"
-        className={estadoColor[item.estado as keyof typeof estadoColor]}
+        className={estadoColor[statusCapitalized as keyof typeof estadoColor] || estadoColor.Borrador}
       >
-        {item.estado}
+        {statusCapitalized}
       </Badge>
-    ),
+    )},
   },
 ];
 
 export default function Comunicaciones() {
+  const navigate = useNavigate();
+  const { data: comunicacionesData = [], isLoading } = useCommunications();
+  const { data: dashboardStats } = useDashboardStats();
+  
+  const { lists, createList, updateList, deleteList } = useDistributionLists();
+  const [listModalOpen, setListModalOpen] = useState(false);
+  const [editingList, setEditingList] = useState<DistributionList | null>(null);
+
+  const handleSaveList = (list: Partial<DistributionList>) => {
+    if (editingList) {
+      updateList.mutate({ ...list, id: editingList.id }, {
+        onSuccess: () => setListModalOpen(false)
+      });
+    } else {
+      createList.mutate(list, {
+        onSuccess: () => setListModalOpen(false)
+      });
+    }
+  };
+
+  const commStats = dashboardStats?.communications || {
+    total: 0,
+    enviado: 0,
+    leido: 0,
+    borrador: 0,
+  };
+  
+  // Calculate delivery rate based on read vs sent (or something similar, depending on what stats mean)
+  const deliveryRate = commStats.enviado && (commStats.enviado as number) > 0 
+    ? Math.round(((commStats.leido as number) / (commStats.enviado as number)) * 100) 
+    : 0;
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -163,10 +153,6 @@ export default function Comunicaciones() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Configurar SMTP
-            </Button>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Nueva Comunicación
@@ -183,7 +169,7 @@ export default function Comunicaciones() {
                   <Mail className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">48</p>
+                  <p className="text-2xl font-bold">{commStats.enviado}</p>
                   <p className="text-sm text-muted-foreground">Total Enviados</p>
                 </div>
               </div>
@@ -196,8 +182,8 @@ export default function Comunicaciones() {
                   <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">92%</p>
-                  <p className="text-sm text-muted-foreground">Tasa de Entrega</p>
+                  <p className="text-2xl font-bold">{deliveryRate}%</p>
+                  <p className="text-sm text-muted-foreground">Tasa de Lectura</p>
                 </div>
               </div>
             </CardContent>
@@ -209,8 +195,8 @@ export default function Comunicaciones() {
                   <Clock className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">3</p>
-                  <p className="text-sm text-muted-foreground">Programados</p>
+                  <p className="text-2xl font-bold">{commStats.borrador}</p>
+                  <p className="text-sm text-muted-foreground">Borradores</p>
                 </div>
               </div>
             </CardContent>
@@ -222,7 +208,7 @@ export default function Comunicaciones() {
                   <Users className="h-6 w-6 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">6</p>
+                  <p className="text-2xl font-bold">{lists.length}</p>
                   <p className="text-sm text-muted-foreground">Listas Activas</p>
                 </div>
               </div>
@@ -289,7 +275,7 @@ export default function Comunicaciones() {
               <CardContent>
                 <ResponsiveTable
                   columns={columns}
-                  data={comunicaciones}
+                  data={comunicacionesData}
                   getKey={(item) => String(item.id)}
                   actions={(item) => (
                     <Button variant="ghost" size="sm">
@@ -303,40 +289,71 @@ export default function Comunicaciones() {
 
           <TabsContent value="listas" className="space-y-4">
             <div className="flex justify-end">
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={() => { setEditingList(null); setListModalOpen(true); }}>
                 <Plus className="h-4 w-4" />
                 Nueva Lista
               </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {listas.map((lista) => (
-                <Card key={lista.id} className="hover:shadow-md transition-shadow">
+              {lists.map((lista) => (
+                <Card key={lista.id} className="hover:shadow-md transition-shadow relative group">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-lg">{lista.nombre}</CardTitle>
-                        <CardDescription>{lista.tipo}</CardDescription>
+                        <CardTitle className="text-lg">{lista.name}</CardTitle>
+                        <CardDescription className="capitalize">
+                          {lista.list_type} {lista.target_value ? `- ${lista.target_value}` : ''}
+                        </CardDescription>
                       </div>
-                      <Badge variant="secondary">{lista.miembros} miembros</Badge>
+                      <Badge variant="secondary">
+                        {lista.list_type === "personalizada" ? `${lista.members_count || 0} miembros` : "Dinámica"}
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      {lista.description || "Sin descripción"}
+                    </p>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        Editar
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingList(lista); setListModalOpen(true); }}>
+                        Edición rápida
                       </Button>
-                      <Button size="sm" className="flex-1 gap-1">
-                        <Send className="h-3 w-3" />
-                        Enviar
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/comunicaciones/listas/${lista.id}`)}>
+                        Completa
                       </Button>
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        if (window.confirm("¿Estás seguro de eliminar esta lista?")) {
+                          deleteList.mutate(lista.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
+              {lists.length === 0 && (
+                <div className="col-span-full py-10 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                  No hay listas de distribución configuradas.
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
+        
+        <DistributionListFormModal
+          open={listModalOpen}
+          onOpenChange={setListModalOpen}
+          list={editingList}
+          onSave={handleSaveList}
+          isSaving={createList.isPending || updateList.isPending}
+        />
       </div>
     </MainLayout>
   );

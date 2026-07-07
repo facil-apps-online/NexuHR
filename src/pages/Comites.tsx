@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Users, Calendar, Award, AlertTriangle, Loader2, Edit, Trash2 } from "lucide-react";
 import { format, differenceInDays, isPast } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import { ComiteForm } from "@/components/comites/ComiteForm";
 import { ComiteDetailDialog } from "@/components/comites/ComiteDetailDialog";
 import {
@@ -57,18 +58,18 @@ export default function Comites() {
 
   const getStatus = (endDate: string | null) => {
     if (!endDate) return "active";
-    return isPast(new Date(endDate)) ? "expired" : "active";
+    return isPast(safeNewDate(endDate)) ? "expired" : "active";
   };
 
   const getDaysLeft = (endDate: string | null) => {
     if (!endDate) return null;
-    const days = differenceInDays(new Date(endDate), new Date());
+    const days = differenceInDays(safeNewDate(endDate), new Date());
     return days > 0 ? days : 0;
   };
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-    return format(new Date(date), "d MMM yyyy", { locale: es });
+    return format(safeNewDate(date), "d MMM yyyy", { locale: es });
   };
 
   const totalCommittees = committees?.length || 0;

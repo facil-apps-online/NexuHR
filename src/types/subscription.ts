@@ -74,5 +74,7 @@ export interface SubscriptionUsage {
     asset_purpose_key?: string;
     used: number;
     limit: number;
+    usedFormatted?: string;
+    raw_used?: number;
   }>;
 }

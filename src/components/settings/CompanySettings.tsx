@@ -45,7 +45,8 @@ const readFileAsBase64 = (file: File): Promise<string> => {
 };
 
 export function CompanySettings() {
-  const { profile, tenantId } = useAuth();
+  const { currentAssignment, tenantId } = useAuth();
+  const platformId = currentAssignment?.platform_id || import.meta.env.VITE_PLATFORM_ID;
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -60,6 +61,10 @@ export function CompanySettings() {
     industry: "",
     website: "",
   });
+
+  const [originalData, setOriginalData] = useState(formData);
+
+  const hasChanges = (Object.keys(formData) as (keyof typeof formData)[]).some(k => formData[k] !== originalData[k]);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant", tenantId],
@@ -80,7 +85,7 @@ export function CompanySettings() {
 
   useEffect(() => {
     if (tenant) {
-      setFormData({
+      const fresh = {
         name: tenant.name || "",
         nit: tenant.tax_id || "",
         address: tenant.physical_address_line1 || "",
@@ -89,7 +94,9 @@ export function CompanySettings() {
         country: tenant.physical_state || "",
         industry: tenant.notes || "",
         website: tenant.website || "",
-      });
+      };
+      setFormData(fresh);
+      setOriginalData(fresh);
     }
   }, [tenant]);
 
@@ -114,6 +121,7 @@ export function CompanySettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant"] });
+      setOriginalData({ ...formData });
       toast.success("Información guardada correctamente");
     },
     onError: (error) => {
@@ -142,7 +150,7 @@ export function CompanySettings() {
 
       const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
         body: {
-          platform_id: import.meta.env.VITE_PLATFORM_ID,
+          platform_id: platformId,
           tenantId: tenantId,
           fileName: `logo_${tenantId}.${ext}`,
           fileBase64: base64data,
@@ -179,7 +187,7 @@ export function CompanySettings() {
         await coreSupabase.functions.invoke('google-drive-delete', {
           body: {
             fileId: tenant.logo_url,
-            platform_id: import.meta.env.VITE_PLATFORM_ID
+            platform_id: platformId
           }
         });
       }
@@ -317,7 +325,7 @@ export function CompanySettings() {
                 <Input id="website" value={formData.website} onChange={(e) => handleChange("website", e.target.value)} placeholder="https://www.empresa.com" />
               </div>
             </div>
-            <Button type="submit" className="gradient-primary" disabled={updateMutation.isPending}>
+            <Button type="submit" className="gradient-primary" disabled={updateMutation.isPending || !hasChanges}>
               {updateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Guardar cambios
             </Button>

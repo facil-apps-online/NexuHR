@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
+import { coreSupabase } from '@/lib/supabaseClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,9 +33,29 @@ export function PortalEvidenceUpload({ module, recordId, bucket = 'evidences', o
     if (!file || !employee) return;
     setUploading(true);
     try {
-      const path = `${employee.id}/${module}/${recordId}/${Date.now()}_${file.name}`;
-      const { error: upErr } = await portalSupabase.storage.from(bucket).upload(path, file, { upsert: false });
-      if (upErr) throw upErr;
+      const base64data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = error => reject(error);
+      });
+
+      const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+        body: {
+          platform_id: import.meta.env.VITE_PLATFORM_ID,
+          tenantId: employee.tenant_id,
+          fileName: `${Date.now()}_${file.name}`,
+          fileBase64: base64data,
+          mimeType: file.type || "application/octet-stream",
+          path_components: ['Soportes', 'Evidencias', module, recordId]
+        }
+      });
+
+      if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || uploadData?.error || "Error al subir evidencia");
+      const filePath = `https://drive.google.com/uc?id=${uploadData.fileId}`;
 
       const { error: insErr } = await portalSupabase.from('evidences').insert({
         tenant_id: employee.tenant_id,
@@ -42,7 +63,7 @@ export function PortalEvidenceUpload({ module, recordId, bucket = 'evidences', o
         record_id: recordId,
         employee_id: employee.id,
         uploaded_by_employee_id: employee.id,
-        file_url: path,
+        file_url: filePath,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,

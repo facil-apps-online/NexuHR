@@ -19,6 +19,7 @@ import {
 import { Plus, Shirt, Package, CheckCircle, Clock, Loader2, FileX, Edit, Trash2, AlertTriangle, Eye } from "lucide-react";
 import { format, isPast, startOfYear } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { DotacionForm } from "@/components/dotacion/DotacionForm";
 import type { Tables } from "@/integrations/supabase/types";
@@ -65,14 +66,14 @@ export default function Dotacion() {
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-    return format(new Date(date), "d MMM yyyy", { locale: es });
+    return format(safeNewDate(date), "d MMM yyyy", { locale: es });
   };
 
   const yearStart = startOfYear(new Date()).toISOString();
   const totalThisYear = dotacion?.filter((d) => d.delivery_date >= yearStart.split("T")[0]).length || 0;
   const signed = dotacion?.filter((d) => !!d.signature_url).length || 0;
   const pendingSignature = dotacion?.filter((d) => !d.signature_url).length || 0;
-  const expired = dotacion?.filter((d) => d.expiry_date && isPast(new Date(d.expiry_date))).length || 0;
+  const expired = dotacion?.filter((d) => d.expiry_date && isPast(safeNewDate(d.expiry_date))).length || 0;
 
   const handleEdit = (item: Tables<"dotacion">) => {
     setEditingItem(item);
@@ -127,7 +128,7 @@ export default function Dotacion() {
       label: "Vencimiento",
       hideOnMobile: true,
       render: (item) => {
-        const isExpired = item.expiry_date && isPast(new Date(item.expiry_date));
+        const isExpired = item.expiry_date && isPast(safeNewDate(item.expiry_date));
         return item.expiry_date ? (
           <Badge className={isExpired
             ? "bg-destructive/10 text-destructive border-destructive/20"

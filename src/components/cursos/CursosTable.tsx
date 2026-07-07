@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import { MoreHorizontal, Eye, Edit, Trash2, Search, FileX } from "lucide-react";
 import { useState } from "react";
 import type { Tables } from "@/integrations/supabase/types";
@@ -40,7 +41,7 @@ const statusBadge: Record<string, React.ReactNode> = {
 
 const formatDate = (date: string | null) => {
   if (!date) return "-";
-  return format(new Date(date), "d MMM yyyy", { locale: es });
+  return format(safeNewDate(date), "d MMM yyyy", { locale: es });
 };
 
 const columns: ResponsiveColumn<CourseWithEmployee>[] = [

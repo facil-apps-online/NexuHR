@@ -7,6 +7,7 @@ import { Loader2, Users, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useGoogleDriveImage } from "@/hooks/useGoogleDriveImage";
 
 interface Employee {
   id: string;
@@ -17,6 +18,7 @@ interface Employee {
   photo_url: string | null;
   supervisor_id: string | null;
   active: boolean;
+  tenant_id: string;
 }
 
 interface TreeNode extends Employee {
@@ -66,6 +68,7 @@ function OrgNode({ node, level }: OrgNodeProps) {
   const [expanded, setExpanded] = useState(level < 2);
   const navigate = useNavigate();
   const hasChildren = node.children.length > 0;
+  const { displayUrl: photoUrl } = useGoogleDriveImage(node.photo_url || undefined, node.tenant_id);
 
   return (
     <div className="relative">
@@ -94,7 +97,7 @@ function OrgNode({ node, level }: OrgNodeProps) {
         {!hasChildren && <div className="w-6" />}
         
         <Avatar className="h-10 w-10">
-          <AvatarImage src={node.photo_url || undefined} />
+          <AvatarImage src={photoUrl || undefined} />
           <AvatarFallback className="bg-primary/10 text-primary font-semibold">
             {node.first_name[0]}{node.last_name[0]}
           </AvatarFallback>
@@ -147,7 +150,7 @@ export function Organigrama({ className }: OrganigramaProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
-        .select("id, first_name, last_name, position, department, photo_url, supervisor_id, active")
+        .select("id, first_name, last_name, position, department, photo_url, supervisor_id, active, tenant_id")
         .order("first_name");
       if (error) throw error;
       return data as Employee[];

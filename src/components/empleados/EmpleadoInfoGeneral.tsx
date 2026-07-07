@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatDate } from "@/lib/utils";
 import { 
   User, 
   Mail, 
@@ -19,10 +18,6 @@ interface EmpleadoInfoGeneralProps {
 }
 
 export function EmpleadoInfoGeneral({ employee }: EmpleadoInfoGeneralProps) {
-  const formatDate = (date: string | null) => {
-    if (!date) return "No especificado";
-    return format(new Date(date), "d 'de' MMMM, yyyy", { locale: es });
-  };
 
   return (
     <div className="grid gap-6 md:grid-cols-2">

@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
+import { coreSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SignatureCanvas } from '@/components/firmas/SignatureCanvas';
@@ -23,11 +24,25 @@ export function PortalSignatureDialog({ open, onOpenChange, module, recordId, up
   const save = useMutation({
     mutationFn: async (dataUrl: string) => {
       if (!employee || !account || !user) throw new Error('Sesión inválida');
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const filePath = `${account.tenant_id}/${module}/${recordId}/${employee.id}_${Date.now()}.png`;
-      const { error: upErr } = await portalSupabase.storage.from('signatures').upload(filePath, blob, { contentType: 'image/png' });
-      if (upErr) throw upErr;
+      
+      const base64data = dataUrl.split(',')[1];
+      const fileSize = Math.round((base64data.length * 3) / 4); // Calculate file size in bytes
+
+      const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+        body: {
+          platform_id: import.meta.env.VITE_PLATFORM_ID,
+          tenantId: account.tenant_id,
+          fileName: `signature_${employee.id}_${Date.now()}.png`,
+          fileBase64: base64data,
+          mimeType: 'image/png',
+          path_components: ['Soportes', 'Firmas', module, recordId],
+        },
+      });
+
+      if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || 'Error en Google Drive');
+      if (!uploadData?.fileId) throw new Error('No se pudo obtener el ID del archivo en Google Drive');
+
+      const filePath = `https://drive.google.com/uc?id=${uploadData.fileId}`;
 
       const watermark = `Firmado el ${format(new Date(), 'dd/MM/yyyy HH:mm:ss', { locale: es })}`;
       const { error: insErr } = await portalSupabase.from('signatures' as any).insert({
@@ -39,6 +54,7 @@ export function PortalSignatureDialog({ open, onOpenChange, module, recordId, up
         signature_url: filePath,
         watermark_text: watermark,
         method: 'canvas',
+        file_size: fileSize,
       });
       if (insErr) throw insErr;
 

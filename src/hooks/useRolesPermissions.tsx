@@ -22,18 +22,22 @@ export function useRolesPermissions() {
   const [selectedUser, setSelectedUser] = useState<UserWithRoles | null>(null);
   const [activeTab, setActiveTab] = useState("roles");
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { currentAssignment } = useAuth();
+  const tenantId = currentAssignment?.tenant_id;
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
-    queryKey: ["roles"],
+    queryKey: ["roles", tenantId],
     queryFn: async () => {
+      if (!tenantId) return [];
       const { data, error } = await supabase
         .from("roles")
         .select("*")
+        .or(`tenant_id.eq.${tenantId},is_system.eq.true`)
         .order("name");
       if (error) throw error;
       return data as Role[];
     },
+    enabled: !!tenantId,
   });
 
   const { data: modules = [] } = useQuery({

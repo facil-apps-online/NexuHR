@@ -1,21 +1,20 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as mainSupabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Bell, Users, User } from "lucide-react";
+import { Loader2, Bell } from "lucide-react";
 
 interface NotificationPreference {
   id?: string;
   user_id?: string;
-  role_id?: string;
   tenant_id: string;
   receive_summary: boolean;
   summary_frequency: string;
@@ -23,81 +22,46 @@ interface NotificationPreference {
   in_app_enabled: boolean;
 }
 
-interface Role {
-  id: string;
-  name: string;
-  description: string | null;
+interface Props {
+  supabase?: SupabaseClient;
+  tenantId?: string;
+  userId?: string;
+  showSummary?: boolean;
 }
 
-export default function NotificationPreferencesSettings() {
-  const { user, profile } = useAuth();
+export default function NotificationPreferencesSettings({ supabase: customSupabase, tenantId: customTenantId, userId: customUserId, showSummary = true }: Props = {}) {
+  const { user: authUser, currentAssignment } = useAuth();
+  const sb = customSupabase ?? mainSupabase;
+  const tenantId = customTenantId ?? currentAssignment?.tenant_id;
+  const userId = customUserId ?? authUser?.id;
+
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("personal");
 
-  // Preferencias personales del usuario
   const { data: userPreference, isLoading: loadingUserPref } = useQuery({
-    queryKey: ["notification-preferences", user?.id],
+    queryKey: ["notification-preferences", userId],
     queryFn: async () => {
-      if (!user?.id || !profile?.tenant_id) return null;
+      if (!userId || !tenantId) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("notification_preferences")
         .select("*")
-        .eq("user_id", user.id)
-        .eq("tenant_id", profile.tenant_id)
+        .eq("user_id", userId)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id && !!profile?.tenant_id,
+    enabled: !!userId && !!tenantId,
   });
 
-  // Roles del tenant
-  const { data: roles = [] } = useQuery({
-    queryKey: ["roles", profile?.tenant_id],
-    queryFn: async () => {
-      if (!profile?.tenant_id) return [];
-
-      const { data, error } = await supabase
-        .from("roles")
-        .select("id, name, description")
-        .eq("tenant_id", profile.tenant_id);
-
-      if (error) throw error;
-      return data as Role[];
-    },
-    enabled: !!profile?.tenant_id,
-  });
-
-  // Preferencias por rol
-  const { data: rolePreferences = [], isLoading: loadingRolePrefs } = useQuery({
-    queryKey: ["role-notification-preferences", profile?.tenant_id],
-    queryFn: async () => {
-      if (!profile?.tenant_id) return [];
-
-      const { data, error } = await supabase
-        .from("role_notification_preferences")
-        .select("*")
-        .eq("tenant_id", profile.tenant_id);
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile?.tenant_id && profile?.is_super_admin,
-  });
-
-  // Estado local para preferencias personales
   const [personalPrefs, setPersonalPrefs] = useState<NotificationPreference>({
-    tenant_id: profile?.tenant_id || "",
+    tenant_id: tenantId || "",
     receive_summary: false,
     summary_frequency: "daily",
     email_enabled: true,
     in_app_enabled: true,
   });
-
-  // Estado local para preferencias de roles
-  const [rolePrefs, setRolePrefs] = useState<Record<string, NotificationPreference>>({});
 
   useEffect(() => {
     if (userPreference) {
@@ -110,32 +74,15 @@ export default function NotificationPreferencesSettings() {
         email_enabled: userPreference.email_enabled ?? true,
         in_app_enabled: userPreference.in_app_enabled ?? true,
       });
-    } else if (profile?.tenant_id) {
-      setPersonalPrefs(prev => ({ ...prev, tenant_id: profile.tenant_id! }));
+    } else if (tenantId) {
+      setPersonalPrefs(prev => ({ ...prev, tenant_id: tenantId }));
     }
-  }, [userPreference, profile?.tenant_id]);
+  }, [userPreference, tenantId]);
 
-  useEffect(() => {
-    const prefs: Record<string, NotificationPreference> = {};
-    for (const rolePref of rolePreferences) {
-      prefs[rolePref.role_id] = {
-        id: rolePref.id,
-        role_id: rolePref.role_id,
-        tenant_id: rolePref.tenant_id,
-        receive_summary: rolePref.receive_summary ?? false,
-        summary_frequency: rolePref.summary_frequency ?? "daily",
-        email_enabled: rolePref.email_enabled ?? true,
-        in_app_enabled: rolePref.in_app_enabled ?? true,
-      };
-    }
-    setRolePrefs(prefs);
-  }, [rolePreferences]);
-
-  // Mutación para guardar preferencias personales
-  const savePersonalPrefsMutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: async (prefs: NotificationPreference) => {
       if (prefs.id) {
-        const { error } = await supabase
+        const { error } = await sb
           .from("notification_preferences")
           .update({
             receive_summary: prefs.receive_summary,
@@ -146,10 +93,10 @@ export default function NotificationPreferencesSettings() {
           .eq("id", prefs.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await sb
           .from("notification_preferences")
           .insert({
-            user_id: user!.id,
+            user_id: userId!,
             tenant_id: prefs.tenant_id,
             receive_summary: prefs.receive_summary,
             summary_frequency: prefs.summary_frequency,
@@ -169,135 +116,7 @@ export default function NotificationPreferencesSettings() {
     },
   });
 
-  // Mutación para guardar preferencias de rol
-  const saveRolePrefsMutation = useMutation({
-    mutationFn: async ({ roleId, prefs }: { roleId: string; prefs: NotificationPreference }) => {
-      if (prefs.id) {
-        const { error } = await supabase
-          .from("role_notification_preferences")
-          .update({
-            receive_summary: prefs.receive_summary,
-            summary_frequency: prefs.summary_frequency,
-            email_enabled: prefs.email_enabled,
-            in_app_enabled: prefs.in_app_enabled,
-          })
-          .eq("id", prefs.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("role_notification_preferences")
-          .insert({
-            role_id: roleId,
-            tenant_id: profile!.tenant_id!,
-            receive_summary: prefs.receive_summary,
-            summary_frequency: prefs.summary_frequency,
-            email_enabled: prefs.email_enabled,
-            in_app_enabled: prefs.in_app_enabled,
-          });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      toast.success("Preferencias del rol guardadas");
-      queryClient.invalidateQueries({ queryKey: ["role-notification-preferences"] });
-    },
-    onError: (error) => {
-      toast.error("Error al guardar preferencias del rol");
-      console.error(error);
-    },
-  });
-
-  const handleRolePrefChange = (roleId: string, field: keyof NotificationPreference, value: any) => {
-    setRolePrefs(prev => ({
-      ...prev,
-      [roleId]: {
-        ...prev[roleId] || {
-          tenant_id: profile?.tenant_id || "",
-          receive_summary: false,
-          summary_frequency: "daily",
-          email_enabled: true,
-          in_app_enabled: true,
-        },
-        [field]: value,
-      },
-    }));
-  };
-
-  const renderPreferenceForm = (
-    prefs: NotificationPreference,
-    onChange: (field: keyof NotificationPreference, value: any) => void,
-    onSave: () => void,
-    isLoading: boolean
-  ) => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label>Notificaciones en la aplicación</Label>
-          <p className="text-sm text-muted-foreground">
-            Recibir notificaciones dentro de la plataforma
-          </p>
-        </div>
-        <Switch
-          checked={prefs.in_app_enabled}
-          onCheckedChange={(checked) => onChange("in_app_enabled", checked)}
-        />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label>Notificaciones por email</Label>
-          <p className="text-sm text-muted-foreground">
-            Recibir alertas importantes por correo electrónico
-          </p>
-        </div>
-        <Switch
-          checked={prefs.email_enabled}
-          onCheckedChange={(checked) => onChange("email_enabled", checked)}
-        />
-      </div>
-
-      <div className="border-t pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="space-y-0.5">
-            <Label className="flex items-center gap-2">
-              Recibir resúmenes consolidados
-              <Badge variant="secondary">Recomendado para administradores</Badge>
-            </Label>
-            <p className="text-sm text-muted-foreground">
-              En lugar de notificaciones individuales, recibe un resumen periódico con todas las alertas
-            </p>
-          </div>
-          <Switch
-            checked={prefs.receive_summary}
-            onCheckedChange={(checked) => onChange("receive_summary", checked)}
-          />
-        </div>
-
-        {prefs.receive_summary && (
-          <div className="ml-4 space-y-2">
-            <Label>Frecuencia del resumen</Label>
-            <Select
-              value={prefs.summary_frequency}
-              onValueChange={(value) => onChange("summary_frequency", value)}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Diario</SelectItem>
-                <SelectItem value="weekly">Semanal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-
-      <Button onClick={onSave} disabled={isLoading} className="mt-4">
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Guardar preferencias
-      </Button>
-    </div>
-  );
+  const bothDisabled = !personalPrefs.in_app_enabled && !personalPrefs.email_enabled;
 
   if (loadingUserPref) {
     return (
@@ -320,80 +139,83 @@ export default function NotificationPreferencesSettings() {
           Configura cómo y cuándo deseas recibir las notificaciones del sistema
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="personal" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Mis preferencias
-            </TabsTrigger>
-            {profile?.is_super_admin && (
-              <TabsTrigger value="roles" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Preferencias por rol
-              </TabsTrigger>
-            )}
-          </TabsList>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Notificaciones en la aplicación</Label>
+            <p className="text-sm text-muted-foreground">
+              Recibir notificaciones dentro de la plataforma
+            </p>
+          </div>
+          <Switch
+            checked={personalPrefs.in_app_enabled}
+            onCheckedChange={(checked) => setPersonalPrefs(prev => ({ ...prev, in_app_enabled: checked }))}
+          />
+        </div>
 
-          <TabsContent value="personal">
-            {renderPreferenceForm(
-              personalPrefs,
-              (field, value) => setPersonalPrefs(prev => ({ ...prev, [field]: value })),
-              () => savePersonalPrefsMutation.mutate(personalPrefs),
-              savePersonalPrefsMutation.isPending
-            )}
-          </TabsContent>
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Notificaciones por email</Label>
+            <p className="text-sm text-muted-foreground">
+              Recibir alertas importantes por correo electrónico
+            </p>
+          </div>
+          <Switch
+            checked={personalPrefs.email_enabled}
+            onCheckedChange={(checked) => setPersonalPrefs(prev => ({ ...prev, email_enabled: checked }))}
+          />
+        </div>
 
-          {profile?.is_super_admin && (
-            <TabsContent value="roles">
-              <p className="text-sm text-muted-foreground mb-6">
-                Configura las preferencias predeterminadas por rol. Los usuarios pueden sobrescribir estas configuraciones con sus preferencias personales.
-              </p>
-              
-              {loadingRolePrefs ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+        {bothDisabled && (
+          <p className="text-sm text-destructive">
+            Debe seleccionar al menos un método de notificación (app o email).
+          </p>
+        )}
+
+        {showSummary && (
+          <>
+            <div className="border-t pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    Recibir resúmenes consolidados
+                    <Badge variant="secondary">Recomendado para administradores</Badge>
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    En lugar de notificaciones individuales, recibe un resumen periódico con todas las alertas
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {roles.map((role) => {
-                    const rolePref = rolePrefs[role.id] || {
-                      tenant_id: profile.tenant_id || "",
-                      receive_summary: false,
-                      summary_frequency: "daily",
-                      email_enabled: true,
-                      in_app_enabled: true,
-                    };
+                <Switch
+                  checked={personalPrefs.receive_summary}
+                  onCheckedChange={(checked) => setPersonalPrefs(prev => ({ ...prev, receive_summary: checked }))}
+                />
+              </div>
 
-                    return (
-                      <Card key={role.id} className="border-muted">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            {role.name}
-                            {role.name === "Administrador" && (
-                              <Badge variant="outline">Sistema</Badge>
-                            )}
-                          </CardTitle>
-                          {role.description && (
-                            <CardDescription>{role.description}</CardDescription>
-                          )}
-                        </CardHeader>
-                        <CardContent>
-                          {renderPreferenceForm(
-                            rolePref,
-                            (field, value) => handleRolePrefChange(role.id, field, value),
-                            () => saveRolePrefsMutation.mutate({ roleId: role.id, prefs: rolePrefs[role.id] || rolePref }),
-                            saveRolePrefsMutation.isPending
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+              {personalPrefs.receive_summary && (
+                <div className="ml-4 space-y-2">
+                  <Label>Frecuencia del resumen</Label>
+                  <Select
+                    value={personalPrefs.summary_frequency}
+                    onValueChange={(value) => setPersonalPrefs(prev => ({ ...prev, summary_frequency: value }))}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Diario</SelectItem>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
-            </TabsContent>
-          )}
-        </Tabs>
+            </div>
+          </>
+        )}
+
+        <Button onClick={() => saveMutation.mutate(personalPrefs)} disabled={saveMutation.isPending || bothDisabled} className="mt-4">
+          {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Guardar preferencias
+        </Button>
       </CardContent>
     </Card>
   );

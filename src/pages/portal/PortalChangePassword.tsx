@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,9 @@ import { Loader2 } from 'lucide-react';
 
 export default function PortalChangePassword() {
   const navigate = useNavigate();
-  const { account, refresh, signOut } = useEmployeePortalAuth();
+  const { portalSlug } = useParams<{ portalSlug?: string }>();
+  const { account, refresh, signOut, updateAccount } = useEmployeePortalAuth();
+  const slug = portalSlug || 'Funcionarios';
   const [pwd1, setPwd1] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,10 +28,11 @@ export default function PortalChangePassword() {
       if (error) throw error;
       if (account?.id) {
         await portalSupabase.from('employee_portal_accounts').update({ must_change_password: false }).eq('id', account.id);
+        updateAccount({ must_change_password: false });
       }
       await refresh();
       toast.success('Contraseña actualizada');
-      navigate('/Funcionarios/inicio', { replace: true });
+      setTimeout(() => navigate(`/${slug}/inicio`, { replace: true }), 0);
     } catch (err: any) {
       toast.error(err?.message || 'No fue posible actualizar la contraseña.');
     } finally {
@@ -56,7 +59,7 @@ export default function PortalChangePassword() {
           <Button type="submit" className="w-full h-12" disabled={loading}>
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Guardar contraseña'}
           </Button>
-          <Button type="button" variant="ghost" className="w-full" onClick={async () => { await signOut(); navigate('/Funcionarios'); }}>
+          <Button type="button" variant="ghost" className="w-full" onClick={async () => { await signOut(); navigate(`/${slug}`); }}>
             Cancelar y salir
           </Button>
         </form>

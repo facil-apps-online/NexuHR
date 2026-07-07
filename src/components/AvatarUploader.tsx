@@ -18,7 +18,7 @@ export const AvatarUploader = React.memo(({
 }: AvatarUploaderProps) => {
   const avatarSizeClasses = { sm: 'h-12 w-12', md: 'h-20 w-20', lg: 'h-32 w-32' };
   const currentAvatarSizeClass = avatarSizeClasses[size];
-  const { user, profile, currentAssignment, refreshUser } = useAuth();
+  const { user, profile, currentAssignment, refreshUser, updateProfileAvatar } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
@@ -111,6 +111,7 @@ export const AvatarUploader = React.memo(({
       }
 
       toast({ title: 'Éxito', description: 'Avatar actualizado correctamente.', variant: 'success' });
+      updateProfileAvatar(uploadData.fileId);
       await refreshUser();
       setCroppedPreviewUrl(null);
       setCroppedImage(null);

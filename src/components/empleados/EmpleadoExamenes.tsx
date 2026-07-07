@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   Stethoscope, 
@@ -124,7 +124,8 @@ export function EmpleadoExamenes({ employeeId }: EmpleadoExamenesProps) {
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-    return format(new Date(date), "d MMM yyyy", { locale: es });
+    const parsed = parse(date, "yyyy-MM-dd", new Date());
+    return format(parsed, "d MMM yyyy", { locale: es });
   };
 
   // Handlers

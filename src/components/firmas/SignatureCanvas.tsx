@@ -103,14 +103,19 @@ export function SignatureCanvas({ onSave, onCancel, employeeName, isSaving }: Si
     initCanvas();
   };
 
+  const lastSaveRef = useRef(0);
+
   const handleSave = () => {
+    const now = Date.now();
+    if (now - lastSaveRef.current < 2000) return; // Prevenir múltiples clics
+    lastSaveRef.current = now;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     // Add watermark with date/time
-    const now = new Date();
     const watermark = `Firmado el ${format(now, "dd/MM/yyyy HH:mm:ss", { locale: es })}`;
     const rect = canvas.getBoundingClientRect();
 

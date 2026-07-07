@@ -21,6 +21,7 @@ import Eventos from "./pages/Eventos";
 import Firmas from "./pages/Firmas";
 import Evaluaciones from "./pages/Evaluaciones";
 import Comunicaciones from "./pages/Comunicaciones";
+import DistributionListEdit from "./pages/DistributionListEdit";
 import Nomina from "./pages/Nomina";
 import Reglamento from "./pages/Reglamento";
 import Configuracion from "./pages/Configuracion";
@@ -29,6 +30,7 @@ import Notificaciones from "./pages/Notificaciones";
 import Incapacidades from "./pages/Incapacidades";
 import ActivosFijos from "./pages/ActivosFijos";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import RegisterTenant from "./pages/RegisterTenant";
 import Suscripcion from "./pages/Suscripcion";
 import PaymentSuccess from "./pages/PaymentSuccess";
@@ -64,6 +66,7 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/register-tenant" element={<RegisterTenant />} />
               <Route path="/" element={<LandingPage />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -78,6 +81,7 @@ const App = () => (
               <Route path="/firmas" element={<ProtectedRoute><Firmas /></ProtectedRoute>} />
               <Route path="/evaluaciones" element={<ProtectedRoute><Evaluaciones /></ProtectedRoute>} />
               <Route path="/comunicaciones" element={<ProtectedRoute><Comunicaciones /></ProtectedRoute>} />
+              <Route path="/comunicaciones/listas/:id" element={<ProtectedRoute><DistributionListEdit /></ProtectedRoute>} />
               <Route path="/nomina" element={<ProtectedRoute><Nomina /></ProtectedRoute>} />
               <Route path="/reglamento" element={<ProtectedRoute><Reglamento /></ProtectedRoute>} />
               <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
@@ -89,27 +93,26 @@ const App = () => (
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/payment-failure" element={<PaymentFailure />} />
 
-              {/* Employee Portal — case-insensitive aliases */}
-              <Route path="/Funcionarios" element={<PortalLogin />} />
-              <Route path="/funcionarios" element={<PortalLogin />} />
-              <Route path="/Funcionarios/cambiar-clave" element={<EmployeePortalProtectedRoute><PortalChangePassword /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/inicio" element={<EmployeePortalProtectedRoute><PortalDashboard /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/pendientes/firmar" element={<EmployeePortalProtectedRoute><PortalPendientesFirmar /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/pendientes/hacer" element={<EmployeePortalProtectedRoute><PortalPendientesHacer /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/mi-actividad" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/mi-actividad/cursos" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/desprendibles" element={<EmployeePortalProtectedRoute><PortalDesprendibles /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/reglamento" element={<EmployeePortalProtectedRoute><PortalReglamento /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/certificados" element={<EmployeePortalProtectedRoute><PortalCertificados /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/perfil" element={<EmployeePortalProtectedRoute><PortalPerfil /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/cursos" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/evaluaciones" element={<EmployeePortalProtectedRoute><PortalEvaluaciones /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/eventos" element={<EmployeePortalProtectedRoute><PortalEventos /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/examenes" element={<EmployeePortalProtectedRoute><PortalExamenes /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/dotacion" element={<EmployeePortalProtectedRoute><PortalDotacion /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/vigilancias" element={<EmployeePortalProtectedRoute><PortalVigilancias /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/incapacidades" element={<EmployeePortalProtectedRoute><PortalIncapacidades /></EmployeePortalProtectedRoute>} />
-              <Route path="/Funcionarios/historial" element={<EmployeePortalProtectedRoute><PortalHistorial /></EmployeePortalProtectedRoute>} />
+              {/* Employee Portal — dynamic slug (matches /:slug, /:slug/inicio, etc.) */}
+              <Route path="/:portalSlug" element={<PortalLogin />} />
+              <Route path="/:portalSlug/cambiar-clave" element={<EmployeePortalProtectedRoute><PortalChangePassword /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/inicio" element={<EmployeePortalProtectedRoute><PortalDashboard /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/pendientes/firmar" element={<EmployeePortalProtectedRoute><PortalPendientesFirmar /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/pendientes/hacer" element={<EmployeePortalProtectedRoute><PortalPendientesHacer /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/mi-actividad" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/mi-actividad/cursos" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/desprendibles" element={<EmployeePortalProtectedRoute><PortalDesprendibles /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/reglamento" element={<EmployeePortalProtectedRoute><PortalReglamento /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/certificados" element={<EmployeePortalProtectedRoute><PortalCertificados /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/perfil" element={<EmployeePortalProtectedRoute><PortalPerfil /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/cursos" element={<EmployeePortalProtectedRoute><PortalCursos /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/evaluaciones" element={<EmployeePortalProtectedRoute><PortalEvaluaciones /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/eventos" element={<EmployeePortalProtectedRoute><PortalEventos /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/examenes" element={<EmployeePortalProtectedRoute><PortalExamenes /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/dotacion" element={<EmployeePortalProtectedRoute><PortalDotacion /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/vigilancias" element={<EmployeePortalProtectedRoute><PortalVigilancias /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/incapacidades" element={<EmployeePortalProtectedRoute><PortalIncapacidades /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/historial" element={<EmployeePortalProtectedRoute><PortalHistorial /></EmployeePortalProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

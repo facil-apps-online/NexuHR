@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -124,13 +125,13 @@ export default function Examenes() {
       "Tipo de Examen": exam.exam_type,
       Entidad: exam.entity || "",
       "Fecha Programada": exam.scheduled_date
-        ? format(new Date(exam.scheduled_date), "dd/MM/yyyy")
+        ? format(safeNewDate(exam.scheduled_date), "dd/MM/yyyy")
         : "",
       "Fecha Examen": exam.exam_date
-        ? format(new Date(exam.exam_date), "dd/MM/yyyy")
+        ? format(safeNewDate(exam.exam_date), "dd/MM/yyyy")
         : "",
       Vencimiento: exam.expiry_date
-        ? format(new Date(exam.expiry_date), "dd/MM/yyyy")
+        ? format(safeNewDate(exam.expiry_date), "dd/MM/yyyy")
         : "",
       Estado: exam.status || "",
       Resultado: exam.result || "",

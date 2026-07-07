@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { coreSupabase } from "@/lib/supabaseClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,8 @@ interface Props {
 
 export function RegulationForm({ open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { currentAssignment } = useAuth();
+  const tenantId = currentAssignment?.tenant_id;
   const [title, setTitle] = useState("Reglamento Interno de Trabajo");
   const [version, setVersion] = useState("1.0");
   const [contentType, setContentType] = useState("text");
@@ -33,25 +35,45 @@ export function RegulationForm({ open, onOpenChange }: Props) {
     mutationFn: async () => {
       let documentUrl: string | null = null;
 
+      let documentSize: number | null = null;
+
       if (contentType === "pdf" && pdfFile) {
-        const fileName = `${profile?.tenant_id}/${Date.now()}_${pdfFile.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("regulations")
-          .upload(fileName, pdfFile);
-        if (uploadErr) throw uploadErr;
-        const { data: urlData } = supabase.storage.from("regulations").getPublicUrl(fileName);
-        documentUrl = urlData.publicUrl;
+        const base64data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(pdfFile);
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]);
+          };
+          reader.onerror = error => reject(error);
+        });
+
+        const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+          body: {
+            platform_id: import.meta.env.VITE_PLATFORM_ID,
+            tenantId: tenantId,
+            fileName: `${Date.now()}_${pdfFile.name}`,
+            fileBase64: base64data,
+            mimeType: pdfFile.type || "application/pdf",
+            path_components: ['Reglamentos']
+          }
+        });
+
+        if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || uploadData?.error || "Error al subir reglamento");
+        documentUrl = `https://drive.google.com/uc?id=${uploadData.fileId}`;
+        documentSize = pdfFile.size;
       }
 
       const userId = (await supabase.auth.getUser()).data.user?.id;
 
       const { data: reg, error } = await supabase.from("regulations").insert({
-        tenant_id: profile?.tenant_id!,
+        tenant_id: tenantId!,
         title,
         version,
         content_type: contentType,
         content_text: contentType === "text" ? contentText : null,
         document_url: documentUrl,
+        document_size: documentSize,
         effective_date: effectiveDate,
         status,
         requires_signature: requiresSignature,
@@ -67,11 +89,11 @@ export function RegulationForm({ open, onOpenChange }: Props) {
           .from("employees")
           .select("id")
           .eq("active", true)
-          .eq("tenant_id", profile?.tenant_id!);
+          .eq("tenant_id", tenantId!);
 
         if (employees?.length) {
           const acks = employees.map(emp => ({
-            tenant_id: profile?.tenant_id!,
+            tenant_id: tenantId!,
             regulation_id: reg.id,
             employee_id: emp.id,
             status: "pendiente",

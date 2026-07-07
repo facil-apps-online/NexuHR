@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Loader2, MoreHorizontal, Edit, Trash2, Download, FileText, HeartPulse, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { safeNewDate } from "@/lib/utils";
 import { toast } from 'sonner';
 import { IncapacidadForm } from '@/components/incapacidades/IncapacidadForm';
 
@@ -114,12 +115,12 @@ export default function Incapacidades() {
     {
       key: "start",
       label: "Inicio",
-      render: (i: any) => format(new Date(i.fecha_inicio), 'dd/MM/yyyy'),
+      render: (i: any) => format(safeNewDate(i.fecha_inicio), 'dd/MM/yyyy'),
     },
     {
       key: "end",
       label: "Fin",
-      render: (i: any) => format(new Date(i.fecha_fin), 'dd/MM/yyyy'),
+      render: (i: any) => format(safeNewDate(i.fecha_fin), 'dd/MM/yyyy'),
     },
     { key: "days", label: "Días", render: (i: any) => i.dias },
     { key: "entity", label: "Entidad", hideOnMobile: true, render: (i: any) => i.entidad ?? '-' },

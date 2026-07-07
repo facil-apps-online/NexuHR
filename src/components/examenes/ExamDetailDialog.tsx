@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -65,7 +66,7 @@ export function ExamDetailDialog({
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-    return format(new Date(date), "d 'de' MMMM 'de' yyyy", { locale: es });
+    return format(safeNewDate(date), "d 'de' MMMM 'de' yyyy", { locale: es });
   };
 
   const employeeName = exam.employees

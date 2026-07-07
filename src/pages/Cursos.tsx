@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, GraduationCap, AlertTriangle, CheckCircle, Clock, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { safeNewDate } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import {
   AlertDialog,
@@ -104,8 +105,8 @@ export default function Cursos() {
       Empleado: c.employees ? `${c.employees.first_name} ${c.employees.last_name}` : "",
       Curso: c.course_name,
       Proveedor: c.provider || "",
-      "Fecha Obtención": c.start_date ? format(new Date(c.start_date), "dd/MM/yyyy") : "",
-      Vencimiento: c.expiry_date ? format(new Date(c.expiry_date), "dd/MM/yyyy") : "",
+      "Fecha Obtención": c.start_date ? format(safeNewDate(c.start_date), "dd/MM/yyyy") : "",
+      Vencimiento: c.expiry_date ? format(safeNewDate(c.expiry_date), "dd/MM/yyyy") : "",
       "Duración (h)": c.duration_hours || "",
       Calificación: c.grade || "",
       Estado: c.status || "",

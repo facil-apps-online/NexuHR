@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Monitor, Smartphone, Tablet, Printer, Package, Loader2, FileX, Plus, Check, Search, X } from "lucide-react";
+import { safeNewDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface EmpleadoActivosProps {
@@ -200,7 +201,7 @@ export function EmpleadoActivos({ employeeId }: EmpleadoActivosProps) {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {activo.fecha_asignacion
-                          ? new Date(activo.fecha_asignacion).toLocaleDateString("es-CO")
+                          ? safeNewDate(activo.fecha_asignacion).toLocaleDateString("es-CO")
                           : "-"}
                       </TableCell>
                     </TableRow>

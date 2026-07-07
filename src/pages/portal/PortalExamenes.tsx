@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { EmployeePortalLayout } from '@/components/portal/EmployeePortalLayout';
+import { PortalRecordAttachments } from '@/components/portal/PortalRecordAttachments';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,9 +25,8 @@ export default function PortalExamenes() {
     },
   });
 
-  const download = async (path: string) => {
-    const { data } = await portalSupabase.storage.from('exam-documents').createSignedUrl(path, 60);
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  const download = (path: string) => {
+    window.open(path, '_blank');
   };
 
   return (
@@ -58,6 +58,11 @@ export default function PortalExamenes() {
                   )}
                 </div>
               </div>
+              <PortalRecordAttachments 
+                module="examenes" 
+                recordId={x.id} 
+                extraItems={x.document_url ? [{ id: `exam-${x.id}`, url: x.document_url, type: 'evidence', fileName: 'Examen' }] : []}
+              />
             </Card>
           ))}
         </div>

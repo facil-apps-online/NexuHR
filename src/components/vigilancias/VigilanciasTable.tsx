@@ -14,6 +14,7 @@ import {
 import { MoreHorizontal, Eye, Edit, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface VigilanciaWithEmployee extends Tables<"vigilancias"> {
@@ -40,7 +41,7 @@ const statusBadge: Record<string, React.ReactNode> = {
 
 const formatDate = (date: string | null) => {
   if (!date) return "-";
-  return format(new Date(date), "d MMM yyyy", { locale: es });
+  return format(safeNewDate(date), "d MMM yyyy", { locale: es });
 };
 
 export function VigilanciasTable({ vigilancias, onViewDetails, onEdit, onDelete, onChangeStatus }: Props) {

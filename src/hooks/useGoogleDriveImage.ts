@@ -15,10 +15,10 @@ const fetchGoogleDriveImage = async (fileId: string, tenantId: string, platformI
 
   const blob = await response.blob();
   if (blob.size === 0) {
-    return undefined;
+    return { url: undefined, type: undefined };
   }
 
-  return URL.createObjectURL(blob);
+  return { url: URL.createObjectURL(blob), type: blob.type };
 };
 
 export const useGoogleDriveImage = (src?: string, tenantIdFromProp?: string) => {
@@ -42,7 +42,7 @@ export const useGoogleDriveImage = (src?: string, tenantIdFromProp?: string) => 
     }
   }
 
-  const { data: displayUrl, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['googleDriveImage', fileId, tenantId, platformId],
     queryFn: () => fetchGoogleDriveImage(fileId!, tenantId!, platformId!),
     enabled: !!fileId && !!tenantId && !!platformId,
@@ -53,8 +53,8 @@ export const useGoogleDriveImage = (src?: string, tenantIdFromProp?: string) => 
   });
 
   if (!fileId) {
-    return { displayUrl: src, isLoading: false };
+    return { displayUrl: src, mimeType: undefined, isLoading: false };
   }
 
-  return { displayUrl, isLoading };
+  return { displayUrl: data?.url, mimeType: data?.type, isLoading };
 };

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle, XCircle, User, Shield } from "lucide-react";
+import { CheckCircle, XCircle, User, Shield, Bell } from "lucide-react";
+import NotificationPreferencesSettings from "@/components/settings/NotificationPreferencesSettings";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -254,12 +255,16 @@ export default function Perfil() {
         </div>
 
         <Tabs defaultValue="personal" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="personal" className="flex items-center gap-2">
+          <TabsList className="flex w-full flex-wrap h-auto">
+            <TabsTrigger value="personal" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <User className="h-4 w-4" />
               <span>Información</span>
             </TabsTrigger>
-            <TabsTrigger value="seguridad" className="flex items-center gap-2">
+            <TabsTrigger value="notificaciones" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+              <Bell className="h-4 w-4" />
+              <span>Notificaciones</span>
+            </TabsTrigger>
+            <TabsTrigger value="seguridad" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <Shield className="h-4 w-4" />
               <span>Seguridad</span>
             </TabsTrigger>
@@ -269,6 +274,9 @@ export default function Perfil() {
             <PersonalInfoTab />
           </TabsContent>
 
+          <TabsContent value="notificaciones" className="mt-6">
+            <NotificationPreferencesSettings />
+          </TabsContent>
           <TabsContent value="seguridad" className="mt-6">
             <SecurityTab />
           </TabsContent>

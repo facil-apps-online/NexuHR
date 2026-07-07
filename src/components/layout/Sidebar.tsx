@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
   Users,
   Stethoscope,
   ShieldCheck,
@@ -15,7 +14,6 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  Building2,
   LogOut,
   ClipboardCheck,
   Banknote,
@@ -27,6 +25,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGoogleDriveImage } from "@/hooks/useGoogleDriveImage";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -96,40 +95,39 @@ interface NavCategory {
 
 const navCategories: NavCategory[] = [
   {
-    label: "Panel",
-    items: [
-      { name: "Panel Principal", href: "/dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
     label: "Gestión Humana",
     items: [
       { name: "Empleados", href: "/empleados", icon: Users, moduleCode: "empleados" },
-      { name: "Incapacidades", href: "/incapacidades", icon: HeartPulse, moduleCode: "incapacidades" },
       { name: "Cursos", href: "/cursos", icon: GraduationCap, moduleCode: "cursos" },
-      { name: "Evaluaciones", href: "/evaluaciones", icon: ClipboardCheck, moduleCode: "evaluaciones" },
-      { name: "Comunicaciones", href: "/comunicaciones", icon: Mail, moduleCode: "comunicaciones" },
     ],
   },
   {
-    label: "Seguridad y Salud",
+    label: "SG-SST",
     items: [
-      { name: "Vigilancias", href: "/vigilancias", icon: ShieldCheck, moduleCode: "vigilancias" },
-      { name: "Exámenes Médicos", href: "/examenes", icon: Stethoscope, moduleCode: "examenes" },
       { name: "Comités", href: "/comites", icon: UserCheck, moduleCode: "comites" },
+      { name: "Eventos", href: "/eventos", icon: FileSignature, moduleCode: "eventos" },
+      { name: "Evaluaciones", href: "/evaluaciones", icon: ClipboardCheck, moduleCode: "evaluaciones" },
+    ],
+  },
+  {
+    label: "Salud",
+    items: [
+      { name: "Exámenes Médicos", href: "/examenes", icon: Stethoscope, moduleCode: "examenes" },
+      { name: "Vigilancias", href: "/vigilancias", icon: ShieldCheck, moduleCode: "vigilancias" },
+      { name: "Incapacidades", href: "/incapacidades", icon: HeartPulse, moduleCode: "incapacidades" },
     ],
   },
   {
     label: "Recursos",
     items: [
-      { name: "Dotación", href: "/dotacion", icon: Shirt, moduleCode: "dotacion" },
       { name: "Activos Fijos", href: "/activos-fijos", icon: Monitor, moduleCode: "activos_fijos" },
+      { name: "Dotación", href: "/dotacion", icon: Shirt, moduleCode: "dotacion" },
     ],
   },
   {
     label: "Procesos",
     items: [
-      { name: "Eventos", href: "/eventos", icon: FileSignature, moduleCode: "eventos" },
+      { name: "Comunicaciones", href: "/comunicaciones", icon: Mail, moduleCode: "comunicaciones" },
       { name: "Centro de Firmas", href: "/firmas", icon: PenTool, moduleCode: "firmas" },
       { name: "Nómina", href: "/nomina", icon: Banknote, moduleCode: "nomina" },
       { name: "Reglamento", href: "/reglamento", icon: BookOpen, moduleCode: "reglamento" },
@@ -148,7 +146,8 @@ export function Sidebar() {
   const setCollapsed = state.setCollapsed;
   const location = useLocation();
   const { hasAnyPermission, isSuperAdmin, loading: isLoadingPermissions } = usePermissions();
-  const { logout, profile } = useAuth();
+  const { logout, profile, tenant, currentAssignment } = useAuth();
+  const { displayUrl: logoSrc } = useGoogleDriveImage(tenant?.logo_url);
 
   const navRef = useRef<HTMLElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -211,17 +210,17 @@ export function Sidebar() {
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+          <Link to="/dashboard" className="flex h-16 items-center justify-between border-b border-sidebar-border px-4 hover:bg-sidebar-accent/50 transition-colors">
             <div className="flex items-center gap-3">
-              <img src={nexurhIcon} alt="NexuHR" className="h-10 w-10" />
+              <img src={logoSrc || nexurhIcon} alt={tenant?.name || "NexuHR"} className="h-10 w-10 rounded-lg object-contain" />
               {!collapsed && (
                 <div className="animate-fade-in">
-                  <h1 className="text-lg font-bold text-sidebar-foreground">NexuHR</h1>
-                  <p className="text-xs text-sidebar-foreground/60">Gestión de RRHH</p>
+                  <h1 className="text-lg font-bold text-sidebar-foreground">{tenant?.name || currentAssignment?.tenant_name || "NexuHR"}</h1>
+                  <p className="text-xs text-sidebar-foreground/60">NexuHR.pro</p>
                 </div>
               )}
             </div>
-          </div>
+          </Link>
 
           {/* Navigation */}
           <div className="relative flex-1 min-h-0">

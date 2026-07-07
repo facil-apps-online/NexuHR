@@ -4,8 +4,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PenTool, FileImage, Users, Stethoscope, ShieldCheck, Shirt, Monitor, GraduationCap, ClipboardCheck, CalendarCheck, FileSignature, Mail, UserCheck, HeartPulse, LucideIcon } from "lucide-react";
+import { Loader2, PenTool, FileImage, Users, Stethoscope, ShieldCheck, Shirt, Monitor, GraduationCap, ClipboardCheck, CalendarCheck, FileSignature, Mail, UserCheck, HeartPulse, Banknote, BookOpen, LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+
+interface Module {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+}
 
 const moduleIcons: Record<string, LucideIcon> = {
   empleados: Users,
@@ -20,39 +27,44 @@ const moduleIcons: Record<string, LucideIcon> = {
   firmas: FileSignature,
   comites: UserCheck,
   comunicaciones: Mail,
-  nomina: FileSignature,
+  nomina: Banknote,
+  reglamento: BookOpen,
 };
 
+const menuModules: Module[] = [
+  { id: "activos_fijos", code: "activos_fijos", name: "Activos Fijos", description: "Inventario de activos" },
+  { id: "cursos", code: "cursos", name: "Cursos", description: "Cursos y certificaciones" },
+  { id: "dotacion", code: "dotacion", name: "Dotación", description: "Entrega de dotación" },
+  { id: "evaluaciones", code: "evaluaciones", name: "Evaluaciones", description: "Evaluaciones de desempeño" },
+  { id: "eventos", code: "eventos", name: "Eventos", description: "Registro de eventos" },
+  { id: "examenes", code: "examenes", name: "Exámenes Médicos", description: "Exámenes ocupacionales" },
+  { id: "incapacidades", code: "incapacidades", name: "Incapacidades", description: "Gestión de incapacidades" },
+  { id: "reglamento", code: "reglamento", name: "Reglamento", description: "Reglamento interno" },
+  { id: "vigilancias", code: "vigilancias", name: "Vigilancias", description: "Vigilancia epidemiológica" },
+];
+
 export function SignatureSettings() {
-  const { profile } = useAuth();
+  const { currentAssignment, tenantId } = useAuth();
+  const platformId = currentAssignment?.platform_id;
   const queryClient = useQueryClient();
 
-  const { data: modules, isLoading: loadingModules } = useQuery({
-    queryKey: ["modules-all"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("modules")
-        .select("id, code, name, description, active")
-        .eq("active", true)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const modules = menuModules;
 
   const { data: tenant, isLoading: loadingTenant } = useQuery({
-    queryKey: ["tenant-settings", profile?.tenant_id],
+    queryKey: ["tenant-settings-signatures", tenantId],
     queryFn: async () => {
-      if (!profile?.tenant_id) return null;
+      if (!tenantId || !platformId) return null;
       const { data, error } = await supabase
         .from("tenant_settings")
         .select("tenant_id, settings_data")
-        .eq("tenant_id", profile.tenant_id)
+        .eq("tenant_id", tenantId)
+        .eq("platform_id", platformId)
+        .eq("setting_key", "signatures")
         .maybeSingle();
       if (error) throw error;
-      return data || { tenant_id: profile.tenant_id, settings_data: {} };
+      return data || { tenant_id: tenantId, settings_data: {} };
     },
-    enabled: !!profile?.tenant_id,
+    enabled: !!tenantId && !!platformId,
   });
 
   const signatureModules: string[] =
@@ -66,31 +78,48 @@ export function SignatureSettings() {
 
       const currentSettings = (tenant.settings_data as Record<string, any>) || {};
       const current: string[] = currentSettings[settingKey] || [];
-
       const updated = enabled
         ? [...current, moduleCode]
         : current.filter((c: string) => c !== moduleCode);
-
-      const platformId = import.meta.env.VITE_PLATFORM_ID;
-      if (!platformId) throw new Error("No platform_id found");
 
       const { error } = await supabase
         .from("tenant_settings")
         .upsert({ 
           tenant_id: tenant.tenant_id,
           platform_id: platformId,
+          setting_key: "signatures",
           settings_data: { ...currentSettings, [settingKey]: updated } 
-        }, { onConflict: "tenant_id,platform_id" });
+        }, { onConflict: "tenant_id,platform_id,setting_key" });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tenant-settings"] });
-      toast.success("Configuración actualizada");
+    onMutate: async ({ moduleCode, enabled, settingKey }) => {
+      await queryClient.cancelQueries({ queryKey: ["tenant-settings-signatures", tenantId] });
+      const previous = queryClient.getQueryData(["tenant-settings-signatures", tenantId]);
+
+      queryClient.setQueryData(["tenant-settings-signatures", tenantId], (old: any) => {
+        if (!old) return old;
+        const data = old.settings_data as Record<string, any> || {};
+        const current: string[] = data[settingKey] || [];
+        data[settingKey] = enabled
+          ? [...current, moduleCode]
+          : current.filter((c: string) => c !== moduleCode);
+        return { ...old, settings_data: { ...data } };
+      });
+
+      return { previous };
     },
-    onError: (err) => toast.error("Error: " + err.message),
+    onError: (err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tenant-settings-signatures", tenantId], context.previous);
+      }
+      toast.error("Error: " + err.message);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-settings-signatures", tenantId] });
+    },
   });
 
-  const isLoading = loadingModules || loadingTenant;
+  const isLoading = loadingTenant;
 
   return (
     <div className="space-y-6">
@@ -120,10 +149,6 @@ export function SignatureSettings() {
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : !modules || modules.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay módulos disponibles para configurar.
-            </p>
           ) : (
             <div className="space-y-1">
               {/* Header */}
@@ -160,7 +185,6 @@ export function SignatureSettings() {
                         onCheckedChange={(checked) =>
                           toggleMutation.mutate({ moduleCode: mod.code, enabled: checked, settingKey: "signature_modules" })
                         }
-                        disabled={toggleMutation.isPending}
                       />
                     </div>
 
@@ -170,7 +194,6 @@ export function SignatureSettings() {
                         onCheckedChange={(checked) =>
                           toggleMutation.mutate({ moduleCode: mod.code, enabled: checked, settingKey: "evidence_modules" })
                         }
-                        disabled={toggleMutation.isPending}
                       />
                     </div>
                   </div>

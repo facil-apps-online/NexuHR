@@ -305,13 +305,19 @@ export function BulkUpload({ open, onOpenChange, onSuccess }: BulkUploadProps) {
         active: true,
       }));
       
-      const { error } = await supabase
-        .from("employees")
-        .insert(employeesToInsert);
-      
-      if (error) throw error;
-      
-      toast.success(`${validEmployees.length} empleados importados exitosamente`);
+            const { data: result, error } = await supabase.functions.invoke("tenant-actions", {
+          body: {
+            action: "create_employees_bulk",
+            payload: {
+              employees_data: employeesToInsert
+            }
+          }
+        });
+        
+        if (error) throw new Error(error.message);
+        if (result?.error) throw new Error(result.error);
+        
+        toast.success(`${validEmployees.length} empleados importados exitosamente`);
       setParsedData([]);
       setFileName(null);
       onSuccess();

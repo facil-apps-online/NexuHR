@@ -2,12 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
+import { usePortalSlug } from '@/hooks/usePortalSlug';
 import { EmployeePortalLayout } from '@/components/portal/EmployeePortalLayout';
 import { Card } from '@/components/ui/card';
 import { PenTool, ClipboardList, DollarSign, Award, GraduationCap, ClipboardCheck, Stethoscope, BookOpen } from 'lucide-react';
 
 export default function PortalDashboard() {
   const { employee } = useEmployeePortalAuth();
+  const { basePath } = usePortalSlug();
   const eid = employee?.id;
 
   const { data } = useQuery({
@@ -42,14 +44,14 @@ export default function PortalDashboard() {
       <h1 className="text-2xl font-bold">Hola, {employee?.first_name} 👋</h1>
       <p className="text-muted-foreground">Aquí ves todo lo tuyo en un solo lugar.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <DashCard to="/Funcionarios/pendientes/firmar" icon={PenTool} label="Por firmar" value={data?.pendingSign ?? '—'} />
-        <DashCard to="/Funcionarios/pendientes/hacer" icon={ClipboardList} label="Por hacer" value={(data ? data.cursos + data.evals + data.pendingRegs : '—')} />
-        <DashCard to="/Funcionarios/cursos" icon={GraduationCap} label="Cursos activos" value={data?.cursos ?? '—'} />
-        <DashCard to="/Funcionarios/evaluaciones" icon={ClipboardCheck} label="Evaluaciones por responder" value={data?.evals ?? '—'} />
-        <DashCard to="/Funcionarios/examenes" icon={Stethoscope} label="Último examen" value={data?.lastExam?.exam_date ?? 'Sin registros'} />
-        <DashCard to="/Funcionarios/desprendibles" icon={DollarSign} label="Último desprendible" value={data?.lastPayroll?.payment_date ?? 'Sin registros'} />
-        <DashCard to="/Funcionarios/reglamento" icon={BookOpen} label="Reglamentos por leer" value={data?.pendingRegs ?? '—'} />
-        <DashCard to="/Funcionarios/certificados" icon={Award} label="Certificados" value="Generar" />
+        <DashCard to={`${basePath}/pendientes/firmar`} icon={PenTool} label="Por firmar" value={data?.pendingSign ?? '—'} />
+        <DashCard to={`${basePath}/pendientes/hacer`} icon={ClipboardList} label="Por hacer" value={(data ? data.cursos + data.evals + data.pendingRegs : '—')} />
+        <DashCard to={`${basePath}/cursos`} icon={GraduationCap} label="Cursos activos" value={data?.cursos ?? '—'} />
+        <DashCard to={`${basePath}/evaluaciones`} icon={ClipboardCheck} label="Evaluaciones por responder" value={data?.evals ?? '—'} />
+        <DashCard to={`${basePath}/examenes`} icon={Stethoscope} label="Último examen" value={data?.lastExam?.exam_date ?? 'Sin registros'} />
+        <DashCard to={`${basePath}/desprendibles`} icon={DollarSign} label="Último desprendible" value={data?.lastPayroll?.payment_date ?? 'Sin registros'} />
+        <DashCard to={`${basePath}/reglamento`} icon={BookOpen} label="Reglamentos por leer" value={data?.pendingRegs ?? '—'} />
+        <DashCard to={`${basePath}/certificados`} icon={Award} label="Certificados" value="Generar" />
       </div>
     </EmployeePortalLayout>
   );

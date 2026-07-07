@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -125,7 +126,7 @@ const columns: ResponsiveColumn<Activo>[] = [
     className: "text-muted-foreground",
     render: (activo) =>
       activo.fecha_compra
-        ? format(new Date(activo.fecha_compra), "d MMM yyyy", { locale: es })
+        ? format(safeNewDate(activo.fecha_compra), "d MMM yyyy", { locale: es })
         : "-",
   },
   {

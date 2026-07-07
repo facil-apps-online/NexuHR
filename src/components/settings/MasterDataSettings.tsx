@@ -10,10 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, FileText, Briefcase, Building2, Loader2, Activity, Stethoscope, Lock, GraduationCap, BookOpen, HardHat, Users, CalendarCheck, ClipboardCheck, Monitor, Package, Wrench, EyeOff, Eye } from "lucide-react";
+import { Plus, Pencil, FileText, Briefcase, Building2, Loader2, Activity, Stethoscope, Lock, GraduationCap, BookOpen, HardHat, Users, CalendarCheck, ClipboardCheck, Monitor, Package, Wrench, EyeOff, Eye, HeartPulse } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-type MasterDataType = "document_types" | "positions" | "departments" | "vigilancia_types" | "exam_types" | "course_providers" | "course_types" | "dotacion_types" | "committee_roles" | "event_types" | "evaluation_types" | "activo_fijo_tipos" | "activo_fijo_estados" | "activo_fijo_marcas";
+type MasterDataType = "document_types" | "positions" | "departments" | "vigilancia_types" | "exam_types" | "course_providers" | "course_types" | "dotacion_types" | "committee_roles" | "event_types" | "evaluation_types" | "activo_fijo_tipos" | "activo_fijo_estados" | "activo_fijo_marcas" | "incapacidad_types";
 
 interface MasterDataItem {
   id: string;
@@ -147,6 +147,12 @@ function MasterDataForm({ type, item, onSuccess, onCancel }: MasterDataFormProps
             .update({ name, active })
             .eq("id", item.id);
           if (error) throw error;
+        } else if (type === "incapacidad_types") {
+          const { error } = await supabase
+            .from("incapacidad_types" as any)
+            .update({ name, active, description, code })
+            .eq("id", item.id);
+          if (error) throw error;
         }
         toast.success("Registro actualizado");
       } else {
@@ -220,6 +226,11 @@ function MasterDataForm({ type, item, onSuccess, onCancel }: MasterDataFormProps
             .from("activo_fijo_marcas" as any)
             .insert([{ name, active, tenant_id: profile.tenant_id, is_standard: false }]);
           if (error) throw error;
+        } else if (type === "incapacidad_types") {
+          const { error } = await supabase
+            .from("incapacidad_types" as any)
+            .insert([{ name, active, description, code: code || 'OTRO', tenant_id: profile.tenant_id, is_standard: false }]);
+          if (error) throw error;
         }
         toast.success("Registro creado");
       }
@@ -243,6 +254,19 @@ function MasterDataForm({ type, item, onSuccess, onCancel }: MasterDataFormProps
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="Ej: CC, CE, PA"
+            maxLength={10}
+            required
+          />
+        </div>
+      )}
+      {type === "incapacidad_types" && (
+        <div className="space-y-2">
+          <Label htmlFor="code">Código *</Label>
+          <Input
+            id="code"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="Ej: EG, LM, OTRO"
             maxLength={10}
             required
           />
@@ -393,9 +417,8 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
     setEditingItem(null);
   };
 
-  // Separate standard and custom items for display
-  const allStandardItems = hasStandardItems ? items?.filter(item => item.is_standard) : [];
-  const standardItems = allStandardItems?.filter(item => !inactiveIds.includes(item.id));
+  // Separate standard and custom items for display — all items always visible in settings
+  const standardItems = hasStandardItems ? items?.filter(item => item.is_standard) : [];
   const customItems = hasStandardItems ? items?.filter(item => !item.is_standard) : items;
 
   return (
@@ -419,7 +442,7 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {editingItem ? "Editar" : "Nuevo"} {title.slice(0, -1).toLowerCase()}
+                  {editingItem ? "Editar" : "Nuevo"}
                 </DialogTitle>
               </DialogHeader>
               <MasterDataForm
@@ -450,40 +473,48 @@ function MasterDataList({ type, title, description, icon, hasStandardItems = fal
                   <Lock className="h-4 w-4" />
                   <span>Tipos estándar del sistema</span>
                 </div>
-                {standardItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="text-xs">
-                        Estándar
-                      </Badge>
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                {standardItems.map((item) => {
+                  const isHidden = inactiveIds.includes(item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border bg-muted/30 ${isHidden ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary" className="text-xs">
+                          Estándar
+                        </Badge>
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          {item.description && (
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                          )}
+                        </div>
+                        {isHidden && (
+                          <Badge variant="outline" className="text-xs text-muted-foreground border-dashed">
+                            Oculto en formularios
+                          </Badge>
                         )}
                       </div>
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={!isHidden}
+                          onCheckedChange={(checked) =>
+                            toggleVisibility.mutate({ id: item.id, visible: checked })
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled
+                          className="opacity-50"
+                        >
+                          <EyeOff className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={!inactiveIds.includes(item.id)}
-                        onCheckedChange={(checked) =>
-                          toggleVisibility.mutate({ id: item.id, visible: checked })
-                        }
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled
-                        className="opacity-50"
-                      >
-                        <EyeOff className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -623,6 +654,10 @@ export function MasterDataSettings() {
                 <ClipboardCheck className="h-4 w-4" />
                 Evaluaciones
               </TabsTrigger>
+              <TabsTrigger value="incapacidad_types" className="flex items-center gap-2">
+                <HeartPulse className="h-4 w-4" />
+                Incapacidades
+              </TabsTrigger>
               <TabsTrigger value="activos_fijos" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
                 Activos Fijos
@@ -702,6 +737,16 @@ export function MasterDataSettings() {
                 title="Tipos de Evaluación"
                 description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
                 icon={<ClipboardCheck className="h-5 w-5 text-muted-foreground" />}
+                hasStandardItems={true}
+              />
+            </TabsContent>
+
+            <TabsContent value="incapacidad_types">
+              <MasterDataList
+                type={"incapacidad_types" as MasterDataType}
+                title="Tipos de Incapacidad"
+                description="Los tipos estándar están disponibles para todos. Puedes agregar tipos personalizados."
+                icon={<HeartPulse className="h-5 w-5 text-muted-foreground" />}
                 hasStandardItems={true}
               />
             </TabsContent>

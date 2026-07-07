@@ -32,6 +32,7 @@ import {
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 
 interface ComiteDetailDialogProps {
   open: boolean;
@@ -136,7 +137,7 @@ export function ComiteDetailDialog({
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-    return format(new Date(date), "d MMM yyyy", { locale: es });
+    return format(safeNewDate(date), "d MMM yyyy", { locale: es });
   };
 
   return (

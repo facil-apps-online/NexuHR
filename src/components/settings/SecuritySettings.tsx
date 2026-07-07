@@ -1,20 +1,34 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { RolesList } from "@/components/roles/RolesList";
 import { RoleForm } from "@/components/roles/RoleForm";
 import { PermissionsMatrix } from "@/components/roles/PermissionsMatrix";
 import { UserRolesList } from "@/components/roles/UserRolesList";
 import { UserRolesForm } from "@/components/roles/UserRolesForm";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Shield, Users2, UserCog } from "lucide-react";
+import { Plus, Shield, Users2, UserCog, UserPlus, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { useRolesPermissions } from "@/hooks/useRolesPermissions";
+import { toast } from "sonner";
 
 export function SecuritySettings() {
+  const { tenantId } = useAuth();
+  const queryClient = useQueryClient();
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteData, setInviteData] = useState({ email: "", firstName: "", lastName: "" });
+
   const {
     isDialogOpen,
     setIsDialogOpen,
@@ -46,6 +60,33 @@ export function SecuritySettings() {
     handleCloseUserRolesDialog,
   } = useRolesPermissions();
 
+  const inviteMutation = useMutation({
+    mutationFn: async (data: { email: string; firstName: string; lastName: string }) => {
+      if (!tenantId) throw new Error("No tenant");
+      const { error } = await supabase.from("profiles").insert({
+        user_id: crypto.randomUUID(),
+        email: data.email,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        tenant_id: tenantId,
+        active: false,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["modules"] });
+      toast.success("Invitación enviada correctamente");
+      setIsInviteOpen(false);
+      setInviteData({ email: "", firstName: "", lastName: "" });
+    },
+    onError: (err) => toast.error("Error al invitar: " + err.message),
+  });
+
+  const handleInvite = () => {
+    if (!inviteData.email) return toast.error("El correo es requerido");
+    inviteMutation.mutate(inviteData);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -55,12 +96,20 @@ export function SecuritySettings() {
             Gestiona los roles, permisos y asignaciones de usuarios
           </p>
         </div>
-        {activeTab === "roles" && (
-          <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nuevo Rol
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {activeTab === "roles" && (
+            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Nuevo Rol
+            </Button>
+          )}
+          {activeTab === "users" && (
+            <Button onClick={() => setIsInviteOpen(true)} className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Invitar Usuario
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -144,6 +193,57 @@ export function SecuritySettings() {
               isLoading={isUpdatingUserRoles}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite User Dialog */}
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invitar Usuario</DialogTitle>
+            <DialogDescription>
+              Envía una invitación para que un nuevo usuario se una a tu organización
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Correo Electrónico *</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="usuario@ejemplo.com"
+                value={inviteData.email}
+                onChange={(e) => setInviteData((prev) => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="invite-firstName">Nombre</Label>
+                <Input
+                  id="invite-firstName"
+                  placeholder="Juan"
+                  value={inviteData.firstName}
+                  onChange={(e) => setInviteData((prev) => ({ ...prev, firstName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-lastName">Apellido</Label>
+                <Input
+                  id="invite-lastName"
+                  placeholder="Pérez"
+                  value={inviteData.lastName}
+                  onChange={(e) => setInviteData((prev) => ({ ...prev, lastName: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInviteOpen(false)}>Cancelar</Button>
+            <Button onClick={handleInvite} disabled={inviteMutation.isPending}>
+              {inviteMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Enviar Invitación
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

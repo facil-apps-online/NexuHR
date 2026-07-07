@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { HeartPulse, Plus, Loader2, FileX, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import { safeNewDate } from "@/lib/utils";
 import { IncapacidadForm } from '@/components/incapacidades/IncapacidadForm';
 import { toast } from 'sonner';
 
@@ -37,10 +38,8 @@ export function EmpleadoIncapacidades({ employeeId }: { employeeId: string }) {
     },
   });
 
-  const handleDownload = async (path: string) => {
-    const { data, error } = await supabase.storage.from('incapacidades').createSignedUrl(path, 60);
-    if (error) { toast.error('No se pudo descargar'); return; }
-    window.open(data.signedUrl, '_blank');
+  const handleDownload = (path: string) => {
+    window.open(path, '_blank');
   };
 
   return (
@@ -80,8 +79,8 @@ export function EmpleadoIncapacidades({ employeeId }: { employeeId: string }) {
                 {data.map((i: any) => (
                   <TableRow key={i.id} className="cursor-pointer" onClick={() => { setSelected(i); setShowForm(true); }}>
                     <TableCell className="capitalize">{i.tipo.replace(/_/g, ' ')}</TableCell>
-                    <TableCell>{format(new Date(i.fecha_inicio), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>{format(new Date(i.fecha_fin), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{format(safeNewDate(i.fecha_inicio), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{format(safeNewDate(i.fecha_fin), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{i.dias}</TableCell>
                     <TableCell>{estadoBadge[i.estado]}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { coreSupabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -41,21 +42,26 @@ export function SignatureDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No autenticado");
 
-      // Convert data URL to blob
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
+      // Convert data URL to base64
+      const base64data = dataUrl.split(",")[1];
+      const fileSize = Math.round((base64data.length * 3) / 4);
 
-      // Upload to storage
-      const filePath = `${tenantId}/${module}/${recordId}/${employeeId}_${Date.now()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from("signatures")
-        .upload(filePath, blob, { contentType: "image/png" });
-      if (uploadError) throw uploadError;
+      // Upload to Google Drive using core edge function
+      const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke("google-drive-upload", {
+        body: {
+          platform_id: import.meta.env.VITE_PLATFORM_ID,
+          tenantId: tenantId,
+          fileName: `signature_${employeeId}_${Date.now()}.png`,
+          fileBase64: base64data,
+          mimeType: "image/png",
+          path_components: ["Soportes", "Firmas", module, recordId],
+        },
+      });
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("signatures")
-        .getPublicUrl(filePath);
+      if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || "Error en Google Drive");
+      if (!uploadData?.fileId) throw new Error("No se pudo obtener el ID del archivo en Google Drive");
+
+      const filePath = `https://drive.google.com/uc?id=${uploadData.fileId}`;
 
       const now = new Date();
       const watermark = `Firmado el ${format(now, "dd/MM/yyyy HH:mm:ss", { locale: es })}`;
@@ -70,23 +76,12 @@ export function SignatureDialog({
           employee_id: employeeId,
           signed_by: user.id,
           signature_url: filePath,
+          file_size: fileSize,
           watermark_text: watermark,
           method: "canvas",
         });
       if (insertError) throw insertError;
 
-      // Update source record based on module
-      if (module === "eventos") {
-        await supabase
-          .from("event_participants" as any)
-          .update({ signed: true, signed_at: now.toISOString(), signature_url: filePath })
-          .eq("id", recordId);
-      } else if (module === "dotacion") {
-        await supabase
-          .from("dotacion")
-          .update({ signature_url: filePath })
-          .eq("id", recordId);
-      }
     },
     onSuccess: () => {
       toast.success("Firma registrada exitosamente");

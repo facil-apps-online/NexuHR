@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import {
   Plus, BookOpen, FileCheck, Users, Loader2, FileX, Eye,
   History, PenTool, CheckCircle2, Clock,
@@ -168,7 +169,7 @@ export default function Reglamento() {
                                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <History className="h-3 w-3" />
-                                    Vigente desde: {format(new Date(reg.effective_date), "d MMM yyyy", { locale: es })}
+                                    Vigente desde: {format(safeNewDate(reg.effective_date), "d MMM yyyy", { locale: es })}
                                   </span>
                                   <span>{reg.content_type === "pdf" ? "📄 PDF" : "📝 Texto"}</span>
                                   {reg.requires_signature && (

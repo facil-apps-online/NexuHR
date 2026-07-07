@@ -2,8 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -20,7 +18,7 @@ export function PortalAccountActions({ employeeId, documentNumber }: Props) {
   const [pending, setPending] = useState<Action>(null);
   const [busy, setBusy] = useState(false);
 
-  const { data: account, isLoading } = useQuery({
+  const { data: account } = useQuery({
     queryKey: ['portal-account', employeeId],
     queryFn: async () => {
       const { data } = await supabase
@@ -49,39 +47,24 @@ export function PortalAccountActions({ employeeId, documentNumber }: Props) {
     }
   };
 
-  const status = account?.status;
   const hasAccount = !!account;
-  const isActive = status === 'active';
+  const isActive = account?.status === 'active';
 
   return (
-    <Card className="p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="font-semibold">Acceso al portal del empleado</p>
-          <p className="text-sm text-muted-foreground">
-            {isLoading ? 'Cargando…' :
-              !hasAccount ? 'Sin cuenta creada' :
-              isActive ? `Activo${account.must_change_password ? ' · debe cambiar contraseña' : ''}${account.last_login_at ? ` · último ingreso ${new Date(account.last_login_at).toLocaleDateString()}` : ''}` :
-              `Revocado el ${account.revoked_at ? new Date(account.revoked_at).toLocaleDateString() : ''}`}
-          </p>
-        </div>
-        <Badge variant={isActive ? 'default' : hasAccount ? 'destructive' : 'secondary'}>
-          {isActive ? 'Activo' : hasAccount ? 'Revocado' : 'Sin cuenta'}
-        </Badge>
-      </div>
+    <>
       <div className="flex flex-wrap gap-2">
         {!isActive && (
           <Button size="sm" onClick={() => setPending('create')} disabled={busy}>
-            {hasAccount ? <><RotateCw className="h-4 w-4 mr-2" />Reactivar</> : <><UserPlus className="h-4 w-4 mr-2" />Activar acceso</>}
+            {hasAccount ? <><RotateCw className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Reactivar</span></> : <><UserPlus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Activar</span></>}
           </Button>
         )}
         {isActive && (
           <>
             <Button size="sm" variant="outline" onClick={() => setPending('reset')} disabled={busy}>
-              <KeyRound className="h-4 w-4 mr-2" />Resetear clave
+              <KeyRound className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Resetear clave</span>
             </Button>
             <Button size="sm" variant="destructive" onClick={() => setPending('revoke')} disabled={busy}>
-              <ShieldOff className="h-4 w-4 mr-2" />Revocar acceso
+              <ShieldOff className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Revocar</span>
             </Button>
           </>
         )}
@@ -112,6 +95,6 @@ export function PortalAccountActions({ employeeId, documentNumber }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }

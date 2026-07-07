@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
+import { coreSupabase } from '@/lib/supabaseClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { useEmployeeActivity } from '@/hooks/useEmployeeActivity';
 import { EmployeePortalLayout } from '@/components/portal/EmployeePortalLayout';
+import { PortalRecordAttachments } from '@/components/portal/PortalRecordAttachments';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Loader2, HeartPulse, Download, FileX } from 'lucide-react';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
+import { safeNewDate } from "@/lib/utils";
 import { toast } from 'sonner';
 
 const estadoBadge: Record<string, JSX.Element> = {
@@ -61,7 +64,8 @@ export default function PortalIncapacidades() {
       const { data, error } = await portalSupabase
         .from('incapacidad_types' as any)
         .select('code, name')
-        .eq('active', true);
+        .eq('active', true)
+        .order('name', { ascending: true });
       if (error) throw error;
       return data as any[];
     },
@@ -80,15 +84,35 @@ export default function PortalIncapacidades() {
       if (!employee) return;
       if (!fechaInicio || !fechaFin || !file) throw new Error('Completa todos los campos y adjunta el PDF de la incapacidad');
       setSaving(true);
-      const path = `${employee.id}/${Date.now()}_${file.name}`;
-      const { error: upErr } = await portalSupabase.storage.from('incapacidades').upload(path, file);
-      if (upErr) throw upErr;
+      const base64data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = error => reject(error);
+      });
+
+      const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+        body: {
+          platform_id: import.meta.env.VITE_PLATFORM_ID,
+          tenantId: employee.tenant_id,
+          fileName: `${Date.now()}_${file.name}`,
+          fileBase64: base64data,
+          mimeType: file.type || "application/octet-stream",
+          path_components: ['Soportes', 'Evidencias', 'Incapacidades', employee.id]
+        }
+      });
+
+      if (uploadError || !uploadData?.success) throw new Error(uploadError?.message || uploadData?.error || "Error al subir documento");
+      const documentUrl = `https://drive.google.com/uc?id=${uploadData.fileId}`;
       const { error } = await portalSupabase.from('incapacidades' as any).insert({
         tenant_id: employee.tenant_id,
         employee_id: employee.id,
         tipo, fecha_inicio: fechaInicio, fecha_fin: fechaFin, dias,
         diagnostico: diagnostico || null, entidad: entidad || null,
-        documento_url: path, estado: 'registrada', origen: 'portal_empleado',
+        documento_url: documentUrl, documento_size: file.size, estado: 'registrada', origen: 'portal_empleado',
       });
       if (error) throw error;
       await log('reporto_incapacidad', { entity_type: 'incapacidad', metadata: { tipo, dias } });
@@ -102,10 +126,8 @@ export default function PortalIncapacidades() {
     onSettled: () => setSaving(false),
   });
 
-  const handleDownload = async (path: string) => {
-    const { data, error } = await portalSupabase.storage.from('incapacidades').createSignedUrl(path, 60);
-    if (error) { toast.error('No se pudo descargar'); return; }
-    window.open(data.signedUrl, '_blank');
+  const handleDownload = (path: string) => {
+    window.open(path, '_blank');
   };
 
   return (
@@ -136,7 +158,7 @@ export default function PortalIncapacidades() {
                 <div>
                   <p className="font-semibold capitalize">{i.tipo.replace(/_/g, ' ')}</p>
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(i.fecha_inicio), 'dd/MM/yyyy')} → {format(new Date(i.fecha_fin), 'dd/MM/yyyy')} · {i.dias} día(s)
+                    {format(safeNewDate(i.fecha_inicio), 'dd/MM/yyyy')} → {format(safeNewDate(i.fecha_fin), 'dd/MM/yyyy')} · {i.dias} día(s)
                   </p>
                   {i.entidad && <p className="text-xs text-muted-foreground">{i.entidad}</p>}
                 </div>
@@ -149,6 +171,13 @@ export default function PortalIncapacidades() {
                   )}
                 </div>
               </CardContent>
+              <div className="px-4 pb-4">
+                <PortalRecordAttachments 
+                  module="incapacidades" 
+                  recordId={i.id} 
+                  extraItems={i.documento_url ? [{ id: `inc-${i.id}`, url: i.documento_url, type: 'evidence', fileName: 'Incapacidad PDF' }] : []}
+                />
+              </div>
             </Card>
           ))}
         </div>

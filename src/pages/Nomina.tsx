@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import {
   Plus, Search, Banknote, FileText, Users, Loader2, FileX,
   Upload, Download, ScrollText, Calendar,
@@ -327,9 +328,9 @@ export default function Nomina() {
                           {p.frequency === "mensual" ? "Mensual" : p.frequency === "quincenal" ? "Quincenal" : "Semanal"}
                         </Badge>
                       )},
-                      { key: "startDate", label: "Inicio", render: (p: any) => format(new Date(p.start_date), "d MMM yyyy", { locale: es }) },
-                      { key: "endDate", label: "Fin", render: (p: any) => format(new Date(p.end_date), "d MMM yyyy", { locale: es }) },
-                      { key: "paymentDate", label: "Fecha Pago", hideOnMobile: true, render: (p: any) => p.payment_date ? format(new Date(p.payment_date), "d MMM yyyy", { locale: es }) : "—" },
+                      { key: "startDate", label: "Inicio", render: (p: any) => format(safeNewDate(p.start_date), "d MMM yyyy", { locale: es }) },
+                      { key: "endDate", label: "Fin", render: (p: any) => format(safeNewDate(p.end_date), "d MMM yyyy", { locale: es }) },
+                      { key: "paymentDate", label: "Fecha Pago", hideOnMobile: true, render: (p: any) => p.payment_date ? format(safeNewDate(p.payment_date), "d MMM yyyy", { locale: es }) : "—" },
                       { key: "status", label: "Estado", render: (p: any) => (
                         <Badge variant="outline" className={periodStatusColor[p.status] || ""}>
                           {p.status === "abierto" ? "Abierto" : "Cerrado"}
@@ -365,7 +366,7 @@ export default function Nomina() {
                             c.contract_type === "obra_labor" ? "Obra/Labor" : c.contract_type}
                         </Badge>
                       )},
-                      { key: "startDate", label: "Inicio", render: (c: any) => format(new Date(c.start_date), "d MMM yyyy", { locale: es }) },
+                      { key: "startDate", label: "Inicio", render: (c: any) => format(safeNewDate(c.start_date), "d MMM yyyy", { locale: es }) },
                       { key: "salary", label: "Salario Base", className: "text-right font-medium", headerClassName: "text-right", render: (c: any) => formatCurrency(c.base_salary) },
                       { key: "frequency", label: "Frecuencia", hideOnMobile: true, render: (c: any) => c.payment_frequency === "mensual" ? "Mensual" : c.payment_frequency === "quincenal" ? "Quincenal" : c.payment_frequency },
                       { key: "status", label: "Estado", render: (c: any) => (

@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { ShieldCheck, Loader2, FileX, Plus, MoreHorizontal, Eye, Edit, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -48,7 +48,8 @@ const statusBadge: Record<string, React.ReactNode> = {
 
 const formatDate = (date: string | null) => {
   if (!date) return "-";
-  return format(new Date(date), "d MMM yyyy", { locale: es });
+  const parsed = parse(date, "yyyy-MM-dd", new Date());
+  return format(parsed, "d MMM yyyy", { locale: es });
 };
 
 export function EmpleadoVigilancias({ employeeId }: EmpleadoVigilanciasProps) {

@@ -145,16 +145,16 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
+              <div className="hidden text-right md:block">
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground">{displayEmail}</p>
+              </div>
               <Avatar className="h-8 w-8 border bg-primary/10">
                 <AvatarImage src={avatarDisplayUrl || undefined} alt={displayName} />
                 <AvatarFallback className="bg-primary/10 text-primary text-xs">
                   {displayName.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden text-left md:block">
-                <p className="text-sm font-medium">{displayName}</p>
-                <p className="text-xs text-muted-foreground">{displayEmail}</p>
-              </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -162,9 +162,6 @@ export function Header() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("/perfil")}>
               Perfil
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/configuracion")}>
-              Configuración
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 

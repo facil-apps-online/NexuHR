@@ -1,61 +1,27 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
-import { Button } from '@/components/ui/button';
+import { usePortalSlug } from '@/hooks/usePortalSlug';
+import { useGoogleDriveImage } from '@/hooks/useGoogleDriveImage';
 import {
   Home, PenTool, ClipboardList, DollarSign, Award,
   User, LogOut, BookOpen, GraduationCap, ClipboardCheck, CalendarDays,
   Stethoscope, Shirt, ShieldAlert, HeartPulse, History, Inbox, Activity,
-  LucideIcon,
+  LucideIcon, ChevronDown,
 } from 'lucide-react';
 import { PortalNotificationBell } from './PortalNotificationBell';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 type NavItem = { to: string; label: string; icon: LucideIcon; matchPrefixes?: string[] };
-
-const navItems: NavItem[] = [
-  { to: '/Funcionarios/inicio', label: 'Inicio', icon: Home },
-  {
-    to: '/Funcionarios/pendientes/firmar',
-    label: 'Pendientes',
-    icon: Inbox,
-    matchPrefixes: ['/Funcionarios/pendientes', '/Funcionarios/incapacidades'],
-  },
-  {
-    to: '/Funcionarios/mi-actividad/cursos',
-    label: 'Mi actividad',
-    icon: Activity,
-    matchPrefixes: [
-      '/Funcionarios/mi-actividad',
-      '/Funcionarios/cursos',
-      '/Funcionarios/evaluaciones',
-      '/Funcionarios/eventos',
-      '/Funcionarios/examenes',
-      '/Funcionarios/vigilancias',
-      '/Funcionarios/dotacion',
-    ],
-  },
-  { to: '/Funcionarios/desprendibles', label: 'Desprendibles', icon: DollarSign },
-  { to: '/Funcionarios/certificados', label: 'Certificados', icon: Award },
-  { to: '/Funcionarios/reglamento', label: 'Reglamento', icon: BookOpen },
-  { to: '/Funcionarios/historial', label: 'Mi historial', icon: History },
-  { to: '/Funcionarios/perfil', label: 'Mi perfil', icon: User },
-];
-
-const pendientesTabs = [
-  { to: '/Funcionarios/pendientes/firmar', label: 'Por firmar', icon: PenTool },
-  { to: '/Funcionarios/pendientes/hacer', label: 'Por hacer', icon: ClipboardList },
-  { to: '/Funcionarios/incapacidades', label: 'Incapacidades', icon: HeartPulse },
-];
-
-const actividadTabs = [
-  { to: '/Funcionarios/cursos', label: 'Cursos', icon: GraduationCap },
-  { to: '/Funcionarios/evaluaciones', label: 'Evaluaciones', icon: ClipboardCheck },
-  { to: '/Funcionarios/eventos', label: 'Eventos', icon: CalendarDays },
-  { to: '/Funcionarios/examenes', label: 'Exámenes', icon: Stethoscope },
-  { to: '/Funcionarios/vigilancias', label: 'Vigilancia', icon: ShieldAlert },
-  { to: '/Funcionarios/dotacion', label: 'Dotación', icon: Shirt },
-];
 
 function pathMatches(pathname: string, item: NavItem) {
   if (item.matchPrefixes) return item.matchPrefixes.some((p) => pathname.startsWith(p));
@@ -90,12 +56,78 @@ function SubNav({ tabs }: { tabs: { to: string; label: string; icon: LucideIcon 
 
 export function EmployeePortalLayout({ children }: { children: ReactNode }) {
   const { employee, signOut } = useEmployeePortalAuth();
+  const { slug } = usePortalSlug();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  const { data: tenantInfo } = useQuery({
+    queryKey: ['portal-tenant-info', employee?.tenant_id],
+    queryFn: async () => {
+      if (!employee?.tenant_id) return null;
+      const { data } = await portalSupabase
+        .from('tenants')
+        .select('logo_url, name')
+        .eq('id', employee.tenant_id)
+        .single();
+      return data || null;
+    },
+    enabled: !!employee?.tenant_id,
+  });
+
+  const tenantLogo = tenantInfo?.logo_url;
+
+  const { displayUrl: logoSrc } = useGoogleDriveImage(tenantLogo || undefined, employee?.tenant_id);
+  const { displayUrl: photoSrc } = useGoogleDriveImage(employee?.photo_url || undefined, employee?.tenant_id);
   const initials = employee ? `${employee.first_name?.[0] ?? ''}${employee.last_name?.[0] ?? ''}` : '';
 
+  const base = useMemo(() => `/${slug}`, [slug]);
+
+  const navItems = useMemo<NavItem[]>(() => [
+    { to: `${base}/inicio`, label: 'Inicio', icon: Home },
+    {
+      to: `${base}/pendientes/firmar`,
+      label: 'Pendientes',
+      icon: Inbox,
+      matchPrefixes: [`${base}/pendientes`, `${base}/incapacidades`],
+    },
+    {
+      to: `${base}/mi-actividad/cursos`,
+      label: 'Mi actividad',
+      icon: Activity,
+      matchPrefixes: [
+        `${base}/mi-actividad`,
+        `${base}/cursos`,
+        `${base}/evaluaciones`,
+        `${base}/eventos`,
+        `${base}/examenes`,
+        `${base}/vigilancias`,
+        `${base}/dotacion`,
+      ],
+    },
+    { to: `${base}/desprendibles`, label: 'Desprendibles', icon: DollarSign },
+    { to: `${base}/certificados`, label: 'Certificados', icon: Award },
+    { to: `${base}/reglamento`, label: 'Reglamento', icon: BookOpen },
+    { to: `${base}/historial`, label: 'Mi historial', icon: History },
+    { to: `${base}/perfil`, label: 'Mi perfil', icon: User },
+  ], [base]);
+
+  const pendientesTabs = useMemo(() => [
+    { to: `${base}/pendientes/firmar`, label: 'Por firmar', icon: PenTool },
+    { to: `${base}/pendientes/hacer`, label: 'Por hacer', icon: ClipboardList },
+    { to: `${base}/incapacidades`, label: 'Incapacidades', icon: HeartPulse },
+  ], [base]);
+
+  const actividadTabs = useMemo(() => [
+    { to: `${base}/cursos`, label: 'Cursos', icon: GraduationCap },
+    { to: `${base}/evaluaciones`, label: 'Evaluaciones', icon: ClipboardCheck },
+    { to: `${base}/eventos`, label: 'Eventos', icon: CalendarDays },
+    { to: `${base}/examenes`, label: 'Exámenes', icon: Stethoscope },
+    { to: `${base}/vigilancias`, label: 'Vigilancia', icon: ShieldAlert },
+    { to: `${base}/dotacion`, label: 'Dotación', icon: Shirt },
+  ], [base]);
+
   const inPendientes =
-    pathname.startsWith('/Funcionarios/pendientes') || pathname.startsWith('/Funcionarios/incapacidades');
+    pathname.startsWith(`${base}/pendientes`) || pathname.startsWith(`${base}/incapacidades`);
   const inActividad = actividadTabs.some((t) => pathname === t.to || pathname.startsWith(t.to + '/'));
 
   return (
@@ -103,19 +135,40 @@ export function EmployeePortalLayout({ children }: { children: ReactNode }) {
       <header className="border-b bg-background sticky top-0 z-20">
         <div className="container flex items-center justify-between py-3">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary overflow-hidden">
-              {employee?.photo_url ? <img src={employee.photo_url} alt="" className="h-full w-full object-cover" /> : initials}
-            </div>
-            <div>
-              <p className="font-semibold leading-tight">{employee?.first_name} {employee?.last_name}</p>
-              <p className="text-sm text-muted-foreground leading-tight">{employee?.position || 'Empleado'}</p>
-            </div>
+            {logoSrc ? (
+              <img src={logoSrc} alt="Logo" className="h-9 w-auto max-w-[120px] object-contain" />
+            ) : null}
+            {tenantInfo?.name && (
+              <span className="font-semibold text-base">{tenantInfo.name}</span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <PortalNotificationBell />
-            <Button variant="ghost" size="lg" onClick={async () => { await signOut(); navigate('/Funcionarios'); }}>
-              <LogOut className="h-5 w-5 mr-2" /> Salir
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 hover:opacity-80 transition">
+                  <div className="text-right hidden sm:block">
+                    <p className="font-semibold leading-tight">{employee?.first_name} {employee?.last_name}</p>
+                    <p className="text-sm text-muted-foreground leading-tight">{employee?.position || 'Empleado'}</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                  <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary overflow-hidden">
+                    {photoSrc ? <img src={photoSrc} alt="" className="h-full w-full object-cover" /> : initials}
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to={`/${slug}/perfil`} className="cursor-pointer">
+                    <User className="h-4 w-4 mr-2" /> Mi perfil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={async () => { await signOut(); navigate(`/${slug}`); }} className="cursor-pointer text-destructive">
+                  <LogOut className="h-4 w-4 mr-2" /> Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

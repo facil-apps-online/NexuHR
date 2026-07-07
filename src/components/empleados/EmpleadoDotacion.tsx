@@ -17,8 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, isPast } from "date-fns";
+import { format, parse, isPast } from "date-fns";
 import { es } from "date-fns/locale";
+import { safeNewDate } from "@/lib/utils";
 import { Shirt, Loader2, FileX, Plus, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DotacionForm } from "@/components/dotacion/DotacionForm";
@@ -47,12 +48,13 @@ export function EmpleadoDotacion({ employeeId }: EmpleadoDotacionProps) {
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-    return format(new Date(date), "d MMM yyyy", { locale: es });
+    const parsed = parse(date, "yyyy-MM-dd", new Date());
+    return format(parsed, "d MMM yyyy", { locale: es });
   };
 
   const getExpiryStatus = (expiryDate: string | null) => {
     if (!expiryDate) return <Badge variant="outline">Sin vencimiento</Badge>;
-    const isExpired = isPast(new Date(expiryDate));
+    const isExpired = isPast(safeNewDate(expiryDate));
     if (isExpired) {
       return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Vencido</Badge>;
     }

@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
+import { EmployeePhotoUpload } from "@/components/EmployeePhotoUpload";
 
 const employeeSchema = z.object({
   document_type: z.string().min(1, "Selecciona un tipo de documento"),
@@ -54,8 +57,38 @@ interface EmpleadoFormProps {
 }
 
 export function EmpleadoForm({ employee, onSubmit, onCancel, isSubmitting }: EmpleadoFormProps) {
-  // Fetch document types
-  const { data: documentTypes } = useQuery({
+  const { currentAssignment } = useAuth();
+  const tenantId = currentAssignment?.tenant_id;
+  const platformId = currentAssignment?.platform_id;
+  const [localPhotoUrl, setLocalPhotoUrl] = useState<string | undefined | null>(employee?.photo_url);
+
+  // Sync localPhotoUrl when employee prop changes (e.g., different employee selected)
+  useEffect(() => {
+    setLocalPhotoUrl(employee?.photo_url);
+  }, [employee?.photo_url]);
+
+  // Fetch per-tenant inactive items for standard master data
+  const { data: inactiveSettings } = useQuery({
+    queryKey: ["tenant_settings", "inactive_items", tenantId],
+    queryFn: async () => {
+      if (!tenantId || !platformId) return {};
+      const { data, error } = await supabase
+        .from("tenant_settings")
+        .select("settings_data")
+        .eq("tenant_id", tenantId)
+        .eq("platform_id", platformId)
+        .eq("setting_key", "inactive_items")
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.settings_data || {}) as Record<string, string[]>;
+    },
+    enabled: !!tenantId && !!platformId,
+  });
+
+  const inactiveDocTypes = inactiveSettings?.document_types || [];
+
+  // Fetch document types (filtered by active + tenant inactive items)
+  const { data: allDocumentTypes } = useQuery({
     queryKey: ["document_types"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -67,6 +100,8 @@ export function EmpleadoForm({ employee, onSubmit, onCancel, isSubmitting }: Emp
       return data;
     },
   });
+
+  const documentTypes = allDocumentTypes?.filter((item) => !inactiveDocTypes.includes(item.id));
 
   // Fetch positions
   const { data: positions } = useQuery({
@@ -143,6 +178,22 @@ export function EmpleadoForm({ employee, onSubmit, onCancel, isSubmitting }: Emp
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Foto del empleado (only when editing existing) */}
+        {employee?.id && tenantId && platformId && (
+          <div className="flex justify-center pb-4 border-b">
+            <EmployeePhotoUpload
+              supabase={supabase}
+              employeeId={employee.id}
+              tenantId={tenantId}
+              platformId={platformId}
+              currentPhotoUrl={localPhotoUrl}
+              employeeName={`${employee.first_name} ${employee.last_name}`}
+              onPhotoUpdated={(fileId) => setLocalPhotoUrl(fileId)}
+              size="lg"
+            />
+          </div>
+        )}
+
         {/* Datos del documento */}
         <div className="space-y-4">
           <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">

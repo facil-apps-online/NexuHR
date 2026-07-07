@@ -57,6 +57,8 @@ export default function Dashboard() {
     ? {
         total: num(exams, "total"),
         upToDate: num(exams, "vigente"),
+        expired: num(exams, "vencido"),
+        expiringSoon: num(exams, "proximo_vencer"),
         percentage: num(exams, "pct_vigente"),
       }
     : undefined;
@@ -134,10 +136,26 @@ export default function Dashboard() {
           <StatCard
             title="Exámenes al Día"
             value={examStats ? `${examStats.percentage}%` : "-"}
-            subtitle={examStats ? `${examStats.upToDate} de ${examStats.total} exámenes` : "Cargando..."}
+            subtitle={
+              examStats
+                ? (examStats.expired > 0
+                  ? `${examStats.expired} vencidos`
+                  : examStats.expiringSoon > 0
+                    ? `${examStats.expiringSoon} por vencer`
+                    : `${examStats.upToDate} de ${examStats.total} al día`)
+                : "Cargando..."
+            }
             icon={Stethoscope}
             href="/examenes"
-            variant={examStats && examStats.percentage >= 80 ? "success" : "warning"}
+            variant={
+              examStats
+                ? (examStats.expired > 0
+                  ? "danger"
+                  : examStats.expiringSoon > 0
+                    ? "warning"
+                    : "success")
+                : "default"
+            }
           />
           <StatCard
             title="Cursos Completados"

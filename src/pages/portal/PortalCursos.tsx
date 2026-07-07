@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { portalSupabase } from '@/integrations/supabase/portalClient';
 import { useEmployeePortalAuth } from '@/hooks/useEmployeePortalAuth';
 import { EmployeePortalLayout } from '@/components/portal/EmployeePortalLayout';
+import { PortalRecordAttachments } from '@/components/portal/PortalRecordAttachments';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,9 +25,8 @@ export default function PortalCursos() {
     },
   });
 
-  const downloadCert = async (path: string) => {
-    const { data } = await portalSupabase.storage.from('evidences').createSignedUrl(path, 60);
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  const downloadCert = (path: string) => {
+    window.open(path, '_blank');
   };
 
   return (
@@ -57,6 +57,11 @@ export default function PortalCursos() {
                   )}
                 </div>
               </div>
+              <PortalRecordAttachments 
+                module="cursos" 
+                recordId={c.id} 
+                extraItems={c.certificate_url ? [{ id: `cert-${c.id}`, url: c.certificate_url, type: 'evidence', fileName: 'Certificado' }] : []}
+              />
             </Card>
           ))}
         </div>

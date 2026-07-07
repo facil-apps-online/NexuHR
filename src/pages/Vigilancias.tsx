@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, ShieldCheck, Users, AlertTriangle, CheckCircle, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { safeNewDate } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import {
   AlertDialog,
@@ -129,8 +130,8 @@ export default function Vigilancias() {
       Empleado: v.employees ? `${v.employees.first_name} ${v.employees.last_name}` : "",
       "Tipo de Vigilancia": v.vigilancia_type,
       Diagnóstico: v.diagnosis || "",
-      "Fecha Inicio": v.start_date ? format(new Date(v.start_date), "dd/MM/yyyy") : "",
-      "Próximo Seguimiento": v.follow_up_date ? format(new Date(v.follow_up_date), "dd/MM/yyyy") : "",
+      "Fecha Inicio": v.start_date ? format(safeNewDate(v.start_date), "dd/MM/yyyy") : "",
+      "Próximo Seguimiento": v.follow_up_date ? format(safeNewDate(v.follow_up_date), "dd/MM/yyyy") : "",
       Estado: v.status || "",
       Restricciones: v.restrictions || "",
       Recomendaciones: v.recommendations || "",
