@@ -37,9 +37,18 @@
     <meta name="twitter:description" content="Portal de Empleados y Sistema integral de administración de talento humano." />
     <meta name="twitter:image" content="/nexurh-icon-512.png" />
 
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GOOGLE_ANALYTICS_ID%"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '%VITE_GOOGLE_ANALYTICS_ID%');
+    </script>
+
     <!-- Google Maps -->
     <script async defer
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMak_Sa32WSbjbegpOJSFCbFZQXtM0Gls&libraries=places&v=beta&loading=async">
+      src="https://maps.googleapis.com/maps/api/js?key=%VITE_GOOGLE_MAPS_API_KEY%&libraries=places&v=beta&loading=async">
     </script>
   </head>
 
