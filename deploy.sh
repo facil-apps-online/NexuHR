@@ -12,7 +12,8 @@ echo "📦 3/5 Instalando dependencias..."
 NODE_OPTIONS="--max-old-space-size=4096" npm install
 
 echo "🌐 4/5 Actualizando listado de navegadores..."
-BROWSERSLIST_IGNORE_OLD_DATA=true npx update-browserslist-db@latest || echo "⚠️ Aviso: No se pudo actualizar browserslist, continuando..."
+rm -f bun.lockb
+BROWSERSLIST_IGNORE_OLD_DATA=true npx update-browserslist-db@latest
 
 echo "🏗️ 5/5 Construyendo la aplicación..."
 NODE_OPTIONS="--max-old-space-size=4096" npm run build
