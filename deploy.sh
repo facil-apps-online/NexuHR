@@ -12,7 +12,7 @@ echo "📦 3/5 Instalando dependencias..."
 NODE_OPTIONS="--max-old-space-size=4096" npm install
 
 echo "🌐 4/5 Actualizando listado de navegadores..."
-npm update browserslist caniuse-lite
+npm_config_user_agent="npm/" npx update-browserslist-db@latest
 
 echo "🏗️ 5/5 Construyendo la aplicación..."
 NODE_OPTIONS="--max-old-space-size=4096" npm run build
