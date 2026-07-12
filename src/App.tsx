@@ -8,6 +8,7 @@ import { EmployeePortalAuthProvider } from "@/hooks/useEmployeePortalAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { EmployeePortalProtectedRoute } from "@/components/portal/EmployeePortalProtectedRoute";
+import { DynamicTenantBranding } from "@/components/portal/DynamicTenantBranding";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Empleados from "./pages/Empleados";
@@ -59,6 +60,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
+      <DynamicTenantBranding />
       <AuthProvider supabaseClient={supabase}>
         <EmployeePortalAuthProvider>
           <TooltipProvider>
