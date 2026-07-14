@@ -60,8 +60,8 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <DynamicTenantBranding />
       <AuthProvider supabaseClient={supabase}>
+        <DynamicTenantBranding />
         <EmployeePortalAuthProvider>
           <TooltipProvider>
             <Toaster />
