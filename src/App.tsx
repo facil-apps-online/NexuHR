@@ -54,6 +54,8 @@ import PortalDotacion from "./pages/portal/PortalDotacion";
 import PortalVigilancias from "./pages/portal/PortalVigilancias";
 import PortalIncapacidades from "./pages/portal/PortalIncapacidades";
 import PortalHistorial from "./pages/portal/PortalHistorial";
+import PoliticasPrivacidad from "./pages/PoliticasPrivacidad";
+import TerminosServicio from "./pages/TerminosServicio";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +73,8 @@ const App = () => (
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/register-tenant" element={<RegisterTenant />} />
               <Route path="/" element={<LandingPage />} />
+              <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />
+              <Route path="/terminos-servicio" element={<TerminosServicio />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/empleados" element={<ProtectedRoute><Empleados /></ProtectedRoute>} />
               <Route path="/empleados/:id" element={<ProtectedRoute><EmpleadoDetalle /></ProtectedRoute>} />
