@@ -302,7 +302,7 @@ export default function LandingPage() {
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <form action="https://api.web3forms.com/submit" method="POST" className="space-y-6">
               {/* Token de Web3Forms */}
-              <input type="hidden" name="access_key" value="95cc3788-b2a1-43ef-b31c-1349fc102213" />
+              <input type="hidden" name="access_key" value="f53316b4-ff08-4977-91cf-319f79dea200" />
               <input type="hidden" name="subject" value="Nuevo contacto desde NexuHR" />
               <input type="hidden" name="from_name" value="NexuHR Contacto" />
               <input type="checkbox" name="botcheck" className="hidden" style={{ display: 'none' }} />
