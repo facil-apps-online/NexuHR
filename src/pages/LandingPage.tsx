@@ -296,7 +296,7 @@ export default function LandingPage() {
       </section>
 
       {/* Contact Section */}
-      <section className="bg-slate-50 py-20 px-4">
+      <section id="contacto" className="bg-slate-50 py-20 px-4">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold mb-8 text-center text-slate-900">Contáctanos</h2>
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
