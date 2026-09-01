@@ -54,6 +54,10 @@ import PortalDotacion from "./pages/portal/PortalDotacion";
 import PortalVigilancias from "./pages/portal/PortalVigilancias";
 import PortalIncapacidades from "./pages/portal/PortalIncapacidades";
 import PortalHistorial from "./pages/portal/PortalHistorial";
+import PortalComunicaciones from "./pages/portal/PortalComunicaciones";
+import PortalContrato from "./pages/portal/PortalContrato";
+import PortalNotificaciones from "./pages/portal/PortalNotificaciones";
+import PortalMisDocumentos from "./pages/portal/PortalMisDocumentos";
 import PoliticasPrivacidad from "./pages/PoliticasPrivacidad";
 import TerminosServicio from "./pages/TerminosServicio";
 
@@ -64,42 +68,42 @@ const App = () => (
     <BrowserRouter>
       <AuthProvider supabaseClient={supabase}>
         <DynamicTenantBranding />
-        <EmployeePortalAuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/register-tenant" element={<RegisterTenant />} />
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />
-              <Route path="/terminos-servicio" element={<TerminosServicio />} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/empleados" element={<ProtectedRoute><Empleados /></ProtectedRoute>} />
-              <Route path="/empleados/:id" element={<ProtectedRoute><EmpleadoDetalle /></ProtectedRoute>} />
-              <Route path="/vigilancias" element={<ProtectedRoute><Vigilancias /></ProtectedRoute>} />
-              <Route path="/examenes" element={<ProtectedRoute><Examenes /></ProtectedRoute>} />
-              <Route path="/cursos" element={<ProtectedRoute><Cursos /></ProtectedRoute>} />
-              <Route path="/dotacion" element={<ProtectedRoute><Dotacion /></ProtectedRoute>} />
-              <Route path="/comites" element={<ProtectedRoute><Comites /></ProtectedRoute>} />
-              <Route path="/eventos" element={<ProtectedRoute><Eventos /></ProtectedRoute>} />
-              <Route path="/firmas" element={<ProtectedRoute><Firmas /></ProtectedRoute>} />
-              <Route path="/evaluaciones" element={<ProtectedRoute><Evaluaciones /></ProtectedRoute>} />
-              <Route path="/comunicaciones" element={<ProtectedRoute><Comunicaciones /></ProtectedRoute>} />
-              <Route path="/comunicaciones/listas/:id" element={<ProtectedRoute><DistributionListEdit /></ProtectedRoute>} />
-              <Route path="/nomina" element={<ProtectedRoute><Nomina /></ProtectedRoute>} />
-              <Route path="/reglamento" element={<ProtectedRoute><Reglamento /></ProtectedRoute>} />
-              <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
-              <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
-              <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
-              <Route path="/incapacidades" element={<ProtectedRoute><Incapacidades /></ProtectedRoute>} />
-              <Route path="/activos-fijos" element={<ProtectedRoute><ActivosFijos /></ProtectedRoute>} />
-              <Route path="/suscripcion" element={<ProtectedRoute><Suscripcion /></ProtectedRoute>} />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/payment-failure" element={<PaymentFailure />} />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/register-tenant" element={<RegisterTenant />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />
+            <Route path="/terminos-servicio" element={<TerminosServicio />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/empleados" element={<ProtectedRoute><Empleados /></ProtectedRoute>} />
+            <Route path="/empleados/:id" element={<ProtectedRoute><EmpleadoDetalle /></ProtectedRoute>} />
+            <Route path="/vigilancias" element={<ProtectedRoute><Vigilancias /></ProtectedRoute>} />
+            <Route path="/examenes" element={<ProtectedRoute><Examenes /></ProtectedRoute>} />
+            <Route path="/cursos" element={<ProtectedRoute><Cursos /></ProtectedRoute>} />
+            <Route path="/dotacion" element={<ProtectedRoute><Dotacion /></ProtectedRoute>} />
+            <Route path="/comites" element={<ProtectedRoute><Comites /></ProtectedRoute>} />
+            <Route path="/eventos" element={<ProtectedRoute><Eventos /></ProtectedRoute>} />
+            <Route path="/firmas" element={<ProtectedRoute><Firmas /></ProtectedRoute>} />
+            <Route path="/evaluaciones" element={<ProtectedRoute><Evaluaciones /></ProtectedRoute>} />
+            <Route path="/comunicaciones" element={<ProtectedRoute><Comunicaciones /></ProtectedRoute>} />
+            <Route path="/comunicaciones/listas/:id" element={<ProtectedRoute><DistributionListEdit /></ProtectedRoute>} />
+            <Route path="/nomina" element={<ProtectedRoute><Nomina /></ProtectedRoute>} />
+            <Route path="/reglamento" element={<ProtectedRoute><Reglamento /></ProtectedRoute>} />
+            <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
+            <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
+            <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
+            <Route path="/incapacidades" element={<ProtectedRoute><Incapacidades /></ProtectedRoute>} />
+            <Route path="/activos-fijos" element={<ProtectedRoute><ActivosFijos /></ProtectedRoute>} />
+            <Route path="/suscripcion" element={<ProtectedRoute><Suscripcion /></ProtectedRoute>} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-failure" element={<PaymentFailure />} />
 
-              {/* Employee Portal — dynamic slug (matches /:slug, /:slug/inicio, etc.) */}
+            {/* Employee Portal — dynamic slug (matches /:slug, /:slug/inicio, etc.) */}
+            <Route element={<EmployeePortalAuthProvider>}>
               <Route path="/:portalSlug" element={<PortalLogin />} />
               <Route path="/:portalSlug/cambiar-clave" element={<EmployeePortalProtectedRoute><PortalChangePassword /></EmployeePortalProtectedRoute>} />
               <Route path="/:portalSlug/inicio" element={<EmployeePortalProtectedRoute><PortalDashboard /></EmployeePortalProtectedRoute>} />
@@ -119,11 +123,15 @@ const App = () => (
               <Route path="/:portalSlug/vigilancias" element={<EmployeePortalProtectedRoute><PortalVigilancias /></EmployeePortalProtectedRoute>} />
               <Route path="/:portalSlug/incapacidades" element={<EmployeePortalProtectedRoute><PortalIncapacidades /></EmployeePortalProtectedRoute>} />
               <Route path="/:portalSlug/historial" element={<EmployeePortalProtectedRoute><PortalHistorial /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/comunicaciones" element={<EmployeePortalProtectedRoute><PortalComunicaciones /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/contrato" element={<EmployeePortalProtectedRoute><PortalContrato /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/notificaciones" element={<EmployeePortalProtectedRoute><PortalNotificaciones /></EmployeePortalProtectedRoute>} />
+              <Route path="/:portalSlug/mis-documentos" element={<EmployeePortalProtectedRoute><PortalMisDocumentos /></EmployeePortalProtectedRoute>} />
+            </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </TooltipProvider>
-        </EmployeePortalAuthProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>
