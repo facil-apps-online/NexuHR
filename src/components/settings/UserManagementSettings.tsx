@@ -126,7 +126,7 @@ export function UserManagementSettings() {
       if (error) throw error;
     },
     onSuccess: (_, { active }) => {
-      queryClient.invalidateQueries({ queryKey: ["users-management"] });
+      queryClient.invalidateQueries({ queryKey: ["users-management", tenantId] });
       toast.success(active ? "Usuario activado" : "Usuario desactivado");
     },
     onError: (error) => {
@@ -159,7 +159,7 @@ export function UserManagementSettings() {
       if (!result?.success) throw new Error(result?.message || "Error al invitar usuario");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users-management"] });
+      queryClient.invalidateQueries({ queryKey: ["users-management", tenantId] });
       toast.success("Invitación enviada correctamente");
       setIsInviteDialogOpen(false);
       setInviteData({ email: "", firstName: "", lastName: "", roleId: "" });
