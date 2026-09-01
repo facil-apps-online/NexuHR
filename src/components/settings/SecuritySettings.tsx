@@ -104,7 +104,7 @@ export function SecuritySettings() {
       if (!result?.success) throw new Error(result?.message || "Error al invitar usuario");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["modules"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant_users", tenantId] });
       toast.success("Invitación enviada correctamente");
       setIsInviteOpen(false);
       setInviteData({ email: "", firstName: "", lastName: "", roleId: "" });

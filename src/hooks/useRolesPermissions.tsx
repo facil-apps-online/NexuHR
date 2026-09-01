@@ -87,11 +87,14 @@ export function useRolesPermissions() {
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery({
-    queryKey: ["tenant_users"],
+    queryKey: ["tenant_users", tenantId],
     queryFn: async () => {
+      if (!tenantId) return [];
+      
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("first_name");
       
       if (profilesError) throw profilesError;
@@ -115,6 +118,7 @@ export function useRolesPermissions() {
 
       return usersWithRoles as UserWithRoles[];
     },
+    enabled: !!tenantId,
   });
 
   const createRoleMutation = useMutation({
