@@ -69,8 +69,8 @@ export function UserManagementSettings() {
       const { data, error } = await supabase
         .from("roles")
         .select("id, name")
-        .eq("tenant_id", tenantId)
-        .eq("is_system", false); // Only non-system roles
+        .eq("tenant_id", tenantId);
+        // Removed is_system filter to show all tenant roles
       if (error) throw error;
       return data;
     },
