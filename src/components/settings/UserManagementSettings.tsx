@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { functions } from "@/integrations/supabase/functions";
+// Use supabase.functions.invoke() directly
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,7 +141,7 @@ export function UserManagementSettings() {
       if (!tenantId) throw new Error("No tenant found");
       if (!platformId) throw new Error("No platformId found");
 
-      const { data: result, error } = await functions.invoke("user-actions", {
+      const { data: result, error } = await supabase.functions.invoke("user-actions", {
         body: {
           action: "invite_or_assign_user_to_tenant",
           payload: {

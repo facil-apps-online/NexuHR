@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { functions } from "@/integrations/supabase/functions";
+// Use supabase.functions.invoke() directly
 
 export function SecuritySettings() {
   const { tenantId, currentAssignment } = useAuth();
@@ -87,7 +87,7 @@ export function SecuritySettings() {
     mutationFn: async (data: { email: string; firstName: string; lastName: string; roleId: string }) => {
       if (!tenantId) throw new Error("No tenant");
       if (!platformId) throw new Error("No platformId");
-      const { data: result, error } = await functions.invoke("user-actions", {
+      const { data: result, error } = await supabase.functions.invoke("user-actions", {
         body: {
           action: "invite_or_assign_user_to_tenant",
           payload: {
