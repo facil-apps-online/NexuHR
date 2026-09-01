@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { RolesList } from "@/components/roles/RolesList";
@@ -22,12 +22,35 @@ import {
 } from "@/components/ui/dialog";
 import { useRolesPermissions } from "@/hooks/useRolesPermissions";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { functions } from "@/integrations/supabase/functions";
 
 export function SecuritySettings() {
-  const { tenantId } = useAuth();
+  const { tenantId, currentAssignment } = useAuth();
   const queryClient = useQueryClient();
+  const platformId = currentAssignment?.platform_id;
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteData, setInviteData] = useState({ email: "", firstName: "", lastName: "" });
+  const [inviteData, setInviteData] = useState({ email: "", firstName: "", lastName: "", roleId: "" });
+
+  const { data: availableRoles = [] } = useQuery({
+    queryKey: ["available-roles", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase
+        .from("roles")
+        .select("id, name")
+        .or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
 
   const {
     isDialogOpen,
@@ -61,23 +84,30 @@ export function SecuritySettings() {
   } = useRolesPermissions();
 
   const inviteMutation = useMutation({
-    mutationFn: async (data: { email: string; firstName: string; lastName: string }) => {
+    mutationFn: async (data: { email: string; firstName: string; lastName: string; roleId: string }) => {
       if (!tenantId) throw new Error("No tenant");
-      const { error } = await supabase.from("profiles").insert({
-        user_id: crypto.randomUUID(),
-        email: data.email,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        tenant_id: tenantId,
-        active: false,
+      if (!platformId) throw new Error("No platformId");
+      const { data: result, error } = await functions.invoke("user-actions", {
+        body: {
+          action: "invite_or_assign_user_to_tenant",
+          payload: {
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            tenantId,
+            roleId: data.roleId,
+            platformId,
+          },
+        },
       });
       if (error) throw error;
+      if (!result?.success) throw new Error(result?.message || "Error al invitar usuario");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["modules"] });
       toast.success("Invitación enviada correctamente");
       setIsInviteOpen(false);
-      setInviteData({ email: "", firstName: "", lastName: "" });
+      setInviteData({ email: "", firstName: "", lastName: "", roleId: "" });
     },
     onError: (err) => toast.error("Error al invitar: " + err.message),
   });
@@ -235,6 +265,26 @@ export function SecuritySettings() {
                   onChange={(e) => setInviteData((prev) => ({ ...prev, lastName: e.target.value }))}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-role">Rol *</Label>
+              <Select
+                value={inviteData.roleId}
+                onValueChange={(value) =>
+                  setInviteData((prev) => ({ ...prev, roleId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
