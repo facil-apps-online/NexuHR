@@ -3,12 +3,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { functions } from "@/integrations/supabase/functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -42,6 +50,7 @@ interface UserWithRoles extends Profile {
 
 export function UserManagementSettings() {
   const { currentAssignment, tenantId } = useAuth();
+  const platformId = currentAssignment?.platform_id;
   const queryClient = useQueryClient();
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,6 +58,23 @@ export function UserManagementSettings() {
     email: "",
     firstName: "",
     lastName: "",
+    roleId: "",
+  });
+
+  // Fetch available roles for the tenant
+  const { data: availableRoles = [] } = useQuery({
+    queryKey: ["available-roles", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase
+        .from("roles")
+        .select("id, name")
+        .eq("tenant_id", tenantId)
+        .eq("is_system", false); // Only non-system roles
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
   });
 
   // Fetch users
@@ -112,37 +138,46 @@ export function UserManagementSettings() {
 
   // Invite user mutation
   const inviteUserMutation = useMutation({
-    mutationFn: async (data: { email: string; firstName: string; lastName: string }) => {
+    mutationFn: async (data: { email: string; firstName: string; lastName: string; roleId: string }) => {
       if (!tenantId) throw new Error("No tenant found");
+      if (!platformId) throw new Error("No platformId found");
 
-      // For now, we'll create a profile entry as "invited"
-      // In a real scenario, you'd send an invitation email
-      const { error } = await supabase.from("profiles").insert({
-        user_id: crypto.randomUUID(), // Placeholder - will be updated when user accepts invite
-        email: data.email,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        tenant_id: tenantId,
-        active: false, // Inactive until they accept the invite
+      const { data: result, error } = await functions.invoke("user-actions", {
+        body: {
+          action: "invite_or_assign_user_to_tenant",
+          payload: {
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            tenantId,
+            roleId: data.roleId,
+            platformId,
+          },
+        },
       });
 
       if (error) throw error;
+      if (!result?.success) throw new Error(result?.message || "Error al invitar usuario");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users-management"] });
       toast.success("Invitación enviada correctamente");
       setIsInviteDialogOpen(false);
-      setInviteData({ email: "", firstName: "", lastName: "" });
+      setInviteData({ email: "", firstName: "", lastName: "", roleId: "" });
     },
     onError: (error) => {
       console.error("Error inviting user:", error);
-      toast.error("Error al enviar la invitación");
+      toast.error("Error al enviar la invitación: " + error.message);
     },
   });
 
   const handleInvite = () => {
     if (!inviteData.email) {
       toast.error("El correo electrónico es requerido");
+      return;
+    }
+    if (!inviteData.roleId) {
+      toast.error("El rol es requerido");
       return;
     }
     inviteUserMutation.mutate(inviteData);
@@ -401,6 +436,26 @@ export function UserManagementSettings() {
                   }
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-role">Rol *</Label>
+              <Select
+                value={inviteData.roleId}
+                onValueChange={(value) =>
+                  setInviteData((prev) => ({ ...prev, roleId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
