@@ -60,8 +60,16 @@ import PortalNotificaciones from "./pages/portal/PortalNotificaciones";
 import PortalMisDocumentos from "./pages/portal/PortalMisDocumentos";
 import PoliticasPrivacidad from "./pages/PoliticasPrivacidad";
 import TerminosServicio from "./pages/TerminosServicio";
+import { Outlet } from "react-router-dom";
 
 const queryClient = new QueryClient();
+
+// Layout wrapper for portal routes that provides EmployeePortalAuthProvider
+const PortalLayout = () => (
+  <EmployeePortalAuthProvider>
+    <Outlet />
+  </EmployeePortalAuthProvider>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -103,7 +111,7 @@ const App = () => (
             <Route path="/payment-failure" element={<PaymentFailure />} />
 
             {/* Employee Portal — dynamic slug (matches /:slug, /:slug/inicio, etc.) */}
-            <Route element={<EmployeePortalAuthProvider>}>
+            <Route element={<PortalLayout />}>
               <Route path="/:portalSlug" element={<PortalLogin />} />
               <Route path="/:portalSlug/cambiar-clave" element={<EmployeePortalProtectedRoute><PortalChangePassword /></EmployeePortalProtectedRoute>} />
               <Route path="/:portalSlug/inicio" element={<EmployeePortalProtectedRoute><PortalDashboard /></EmployeePortalProtectedRoute>} />
