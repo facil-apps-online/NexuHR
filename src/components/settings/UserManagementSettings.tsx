@@ -69,8 +69,7 @@ export function UserManagementSettings() {
       const { data, error } = await supabase
         .from("roles")
         .select("id, name")
-        .eq("tenant_id", tenantId);
-        // Removed is_system filter to show all tenant roles
+        .or(`tenant_id.eq.${tenantId},tenant_id.is.null`); // Include tenant-specific + global roles
       if (error) throw error;
       return data;
     },
