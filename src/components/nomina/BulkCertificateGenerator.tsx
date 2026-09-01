@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Printer, FileText, Users } from "lucide-react";
+import { Printer, FileText, Users, Download, Loader2, AlertTriangle } from "lucide-react";
+import { useReportApi } from "@/hooks/useReportApi";
+import { useReportingIntegration } from "@/hooks/useReportingIntegration";
 
 interface Props {
   open: boolean;
@@ -23,6 +25,12 @@ export function BulkCertificateGenerator({ open, onOpenChange }: Props) {
   const [dirigidaA, setDirigidaA] = useState("");
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [generatedContent, setGeneratedContent] = useState<{ name: string; content: string }[]>([]);
+  const { data: integration } = useReportingIntegration();
+
+  const { generatePdf, loading: generatingPdf } = useReportApi({
+    apiUrl: integration?.apiUrl || "",
+    apiKey: integration?.apiKey || "",
+  });
 
   const { data: employees } = useQuery({
     queryKey: ["employees-list"],
@@ -139,6 +147,65 @@ export function BulkCertificateGenerator({ open, onOpenChange }: Props) {
     printWindow.print();
   };
 
+  const isRepxTemplate = template?.template_type === "repx";
+  const isConfigured = integration?.isConfigured && integration?.apiKey;
+
+  const handleGenerateAllPdf = async () => {
+    if (!template || !selectedEmployees.length) return;
+
+    if (!isConfigured) {
+      toast.error("La API de reportes no está configurada. Ve a Configuración → Integraciones.");
+      return;
+    }
+
+    try {
+      for (const empId of selectedEmployees) {
+        const emp = employees?.find(e => e.id === empId);
+        if (!emp) continue;
+
+        const contract = contractMap.get(empId);
+        const salary = contract?.base_salary || 0;
+        const now = new Date();
+
+        const data = {
+          nombre_empleado: `${emp.first_name} ${emp.last_name}`,
+          tipo_documento: emp.document_type || "CC",
+          numero_documento: emp.document_number || "",
+          cargo: contract?.position || "N/A",
+          departamento: contract?.department || "N/A",
+          fecha_inicio: contract?.start_date || emp.hire_date || "N/A",
+          tipo_contrato: contract?.contract_type || "N/A",
+          salario_base: formatCurrency(salary),
+          salario_letras: "",
+          empresa: tenant?.name || "La Empresa",
+          dirigida_a: dirigidaA || "A QUIEN INTERESE",
+          dia: now.getDate().toString(),
+          mes: monthNames[now.getMonth()],
+          año: now.getFullYear().toString(),
+        };
+
+        const result = await generatePdf({
+          templateKey: template.name.replace(/\s+/g, '-').toLowerCase(),
+          data,
+          asBase64: false,
+        });
+
+        if (result instanceof Blob) {
+          const url = URL.createObjectURL(result);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `certificacion-${emp.first_name}-${emp.last_name}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      toast.success(`${selectedEmployees.length} PDFs generados`);
+    } catch (error) {
+      toast.error("Error al generar los PDFs");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
@@ -198,7 +265,17 @@ export function BulkCertificateGenerator({ open, onOpenChange }: Props) {
             </ScrollArea>
           </div>
 
-          {generatedContent.length > 0 && (
+          {isRepxTemplate && !isConfigured && (
+            <div className="border rounded-lg p-3 bg-destructive/10 text-sm text-destructive flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">API de reportes no configurada</p>
+                <p>Ve a Configuración → Integraciones para configurar la conexión.</p>
+              </div>
+            </div>
+          )}
+
+          {generatedContent.length > 0 && !isRepxTemplate && (
             <div className="border rounded-lg p-3 bg-muted/30">
               <p className="text-sm font-medium mb-2 flex items-center gap-2">
                 <FileText className="h-4 w-4" />
@@ -209,19 +286,40 @@ export function BulkCertificateGenerator({ open, onOpenChange }: Props) {
               </div>
             </div>
           )}
+
+          {isRepxTemplate && isConfigured && selectedEmployees.length > 0 && (
+            <div className="border rounded-lg p-3 bg-muted/30 text-sm text-center">
+              <p>{selectedEmployees.length} empleados seleccionados. Los PDFs se generarán dinámicamente.</p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
-          {generatedContent.length > 0 && (
+          {generatedContent.length > 0 && !isRepxTemplate && (
             <Button variant="outline" className="gap-2" onClick={printAll}>
               <Printer className="h-4 w-4" />
               Imprimir Todas
             </Button>
           )}
-          <Button onClick={generate} disabled={!templateId || !selectedEmployees.length} className="gap-2">
-            <FileText className="h-4 w-4" />
-            Generar ({selectedEmployees.length})
-          </Button>
+          {isRepxTemplate ? (
+            <Button
+              onClick={handleGenerateAllPdf}
+              disabled={!templateId || !selectedEmployees.length || generatingPdf || !isConfigured}
+              className="gap-2"
+            >
+              {generatingPdf ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Generar PDFs ({selectedEmployees.length})
+            </Button>
+          ) : (
+            <Button onClick={generate} disabled={!templateId || !selectedEmployees.length} className="gap-2">
+              <FileText className="h-4 w-4" />
+              Generar ({selectedEmployees.length})
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

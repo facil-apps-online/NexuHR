@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 
 import { FileText } from 'lucide-react';
+import { UnifiedPdfViewer } from '@/components/pdf/UnifiedPdfViewer';
 
 interface AttachmentItemProps {
   url: string;
@@ -46,7 +47,9 @@ function AttachmentItem({ url, type, fileName, tenantId }: AttachmentItemProps) 
         <div className="bg-background rounded-lg overflow-hidden flex flex-col items-center justify-center p-4 relative w-full h-full">
           {fileName && <p className="text-sm font-medium mb-4 text-center">{fileName}</p>}
           {isPdf ? (
-            <iframe src={displayUrl} className="w-full flex-1 rounded" />
+            <div className="w-full flex-1 min-h-0">
+              <UnifiedPdfViewer url={displayUrl} className="h-full" />
+            </div>
           ) : (
             <img 
               src={displayUrl} 

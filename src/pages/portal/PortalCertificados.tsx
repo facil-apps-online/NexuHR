@@ -71,11 +71,24 @@ export default function PortalCertificados() {
   };
 
   const printCert = () => {
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w || !previewHtml) return;
-    w.document.write(`<html><head><title>${previewTitle}</title><style>body{font-family:Georgia,serif;padding:48px;max-width:800px;margin:auto;line-height:1.6;color:#111}h1,h2{text-align:center}</style></head><body>${previewHtml}</body></html>`);
-    w.document.close();
-    setTimeout(() => w.print(), 250);
+    if (!previewHtml) return;
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument;
+    if (!doc) { document.body.removeChild(iframe); return; }
+    doc.open();
+    doc.write(`<html><head><title>${previewTitle}</title><style>body{font-family:Georgia,serif;padding:48px;max-width:800px;margin:auto;line-height:1.6;color:#111}h1,h2{text-align:center}@media print{body{padding:24px}}</style></head><body>${previewHtml}</body></html>`);
+    doc.close();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 300);
   };
 
   return (
@@ -94,7 +107,7 @@ export default function PortalCertificados() {
                   <p className="text-sm text-muted-foreground">{t.template_type}</p>
                 </div>
               </div>
-              <Button size="sm" onClick={() => openPreview(t)}>
+              <Button size="default" onClick={() => openPreview(t)}>
                 <Download className="h-4 w-4 mr-2" /> Generar
               </Button>
             </Card>
@@ -103,7 +116,7 @@ export default function PortalCertificados() {
       )}
 
       <Dialog open={!!previewHtml} onOpenChange={(o) => !o && setPreviewHtml(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{previewTitle}</DialogTitle></DialogHeader>
           <div className="prose prose-sm max-w-none border rounded p-4 bg-background" dangerouslySetInnerHTML={{ __html: previewHtml || '' }} />
           <div className="flex justify-end gap-2 pt-2 border-t">

@@ -14,7 +14,10 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createNotification } from '@/lib/createNotification';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { Icd10Selector } from '@/components/ui/icd10-selector';
+import type { Icd10Diagnosis } from '@/lib/icd10-utils';
 
 interface Props {
   open: boolean;
@@ -30,7 +33,7 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [diagnostico, setDiagnostico] = useState('');
-  const [codigoCie, setCodigoCie] = useState('');
+  const [diagnosticos, setDiagnosticos] = useState<Icd10Diagnosis[]>([]);
   const [entidad, setEntidad] = useState('');
   const [numeroRadicado, setNumeroRadicado] = useState('');
   const [estado, setEstado] = useState<string>('registrada');
@@ -45,7 +48,14 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
       setFechaInicio(incapacidad.fecha_inicio);
       setFechaFin(incapacidad.fecha_fin);
       setDiagnostico(incapacidad.diagnostico ?? '');
-      setCodigoCie(incapacidad.codigo_cie ?? '');
+      // Support both old (codigo_cie string) and new (diagnosticos_json array) formats
+      if (incapacidad.diagnosticos_json && Array.isArray(incapacidad.diagnosticos_json)) {
+        setDiagnosticos(incapacidad.diagnosticos_json);
+      } else if (incapacidad.codigo_cie) {
+        setDiagnosticos([{ code: incapacidad.codigo_cie, es: incapacidad.diagnostico || incapacidad.codigo_cie, en: '' }]);
+      } else {
+        setDiagnosticos([]);
+      }
       setEntidad(incapacidad.entidad ?? '');
       setNumeroRadicado(incapacidad.numero_radicado ?? '');
       setEstado(incapacidad.estado);
@@ -53,7 +63,7 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
     } else {
       setEmployeeId(defaultEmployeeId ?? '');
       setTipo('enfermedad_general'); setFechaInicio(''); setFechaFin('');
-      setDiagnostico(''); setCodigoCie(''); setEntidad(''); setNumeroRadicado('');
+      setDiagnostico(''); setDiagnosticos([]); setEntidad(''); setNumeroRadicado('');
       setEstado('registrada'); setNotas(''); setFile(null);
     }
   }, [incapacidad, defaultEmployeeId, open]);
@@ -135,8 +145,9 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         dias,
-        diagnostico: diagnostico || null,
-        codigo_cie: codigoCie || null,
+        diagnostico: diagnostico || (diagnosticos.length > 0 ? diagnosticos.map(d => d.es).join('; ') : null),
+        codigo_cie: diagnosticos.length > 0 ? diagnosticos[0].code : null,
+        diagnosticos_json: diagnosticos.length > 0 ? diagnosticos : null,
         entidad: entidad || null,
         numero_radicado: numeroRadicado || null,
         estado,
@@ -153,10 +164,31 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ['incapacidades'] });
       qc.invalidateQueries({ queryKey: ['employee-incapacidades'] });
       toast.success(incapacidad ? 'Incapacidad actualizada' : 'Incapacidad registrada');
+
+      if (incapacidad?.id && employeeId) {
+        try {
+          const { data: empUser } = await supabase
+            .from('employees' as any)
+            .select('user_id, first_name, last_name, tenant_id')
+            .eq('id', employeeId)
+            .single();
+          if (empUser?.user_id) {
+            const estadoLabel = estado === 'aprobada' ? 'aprobada' : estado === 'rechazada' ? 'rechazada' : estado;
+            await createNotification({
+              userId: empUser.user_id,
+              tenantId: empUser.tenant_id,
+              title: `Incapacidad ${estadoLabel}`,
+              message: `Su incapacidad del ${fechaInicio} al ${fechaFin} fue ${estadoLabel}.`,
+              type: estado === 'aprobada' ? 'success' : estado === 'rechazada' ? 'error' : 'info',
+            });
+          }
+        } catch { /* silent */ }
+      }
+
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -231,12 +263,12 @@ export function IncapacidadForm({ open, onOpenChange, incapacidad, defaultEmploy
           </div>
 
           <div className="md:col-span-2">
-            <Label>Diagnóstico</Label>
-            <Textarea rows={2} value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} />
+            <Label>Diagnóstico CIE-10 (hasta 3)</Label>
+            <Icd10Selector value={diagnosticos} onChange={setDiagnosticos} />
           </div>
-          <div>
-            <Label>Código CIE-10</Label>
-            <Input value={codigoCie} onChange={(e) => setCodigoCie(e.target.value)} />
+          <div className="md:col-span-2">
+            <Label>Observaciones clínicas</Label>
+            <Textarea rows={2} value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} placeholder="Descripción adicional del diagnóstico..." />
           </div>
           <div>
             <Label>Documento (PDF)</Label>

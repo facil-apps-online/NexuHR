@@ -16,6 +16,7 @@ import { EmpleadoEvaluaciones } from "@/components/empleados/EmpleadoEvaluacione
 import { EmpleadoComites } from "@/components/empleados/EmpleadoComites";
 import { EmpleadoIncapacidades } from "@/components/empleados/EmpleadoIncapacidades";
 import { EmpleadoActivos } from "@/components/empleados/EmpleadoActivos";
+import { EmpleadoDocumentos } from "@/components/empleados/EmpleadoDocumentos";
 import { PortalAccountActions } from "@/components/portal/PortalAccountActions";
 
 export default function EmpleadoDetalle() {
@@ -105,6 +106,7 @@ export default function EmpleadoDetalle() {
             <TabsTrigger value="comites">Comités</TabsTrigger>
             <TabsTrigger value="incapacidades">Incapacidades</TabsTrigger>
             <TabsTrigger value="activos">Activos Fijos</TabsTrigger>
+            <TabsTrigger value="documentos">Documentos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4">
@@ -142,6 +144,10 @@ export default function EmpleadoDetalle() {
 
           <TabsContent value="activos">
             <EmpleadoActivos employeeId={employee.id} />
+          </TabsContent>
+
+          <TabsContent value="documentos">
+            <EmpleadoDocumentos employeeId={employee.id} />
           </TabsContent>
         </Tabs>
       </div>

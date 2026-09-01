@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText, Upload } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportDesignerDialog } from "./ReportDesignerDialog";
 
 interface Props {
   open: boolean;
@@ -45,17 +47,32 @@ export function CertificateTemplateForm({ open, onOpenChange }: Props) {
   const { profile } = useAuth();
   const [name, setName] = useState("Certificación Laboral Estándar");
   const [content, setContent] = useState(defaultTemplate);
+  const [templateType, setTemplateType] = useState<"html" | "repx">("html");
+  const [showDesigner, setShowDesigner] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("certificate_templates").insert({
-        tenant_id: profile?.tenant_id!,
-        name,
-        template_type: "laboral",
-        content_template: content,
-        created_by: (await supabase.auth.getUser()).data.user?.id,
-      });
-      if (error) throw error;
+      if (templateType === "repx") {
+        // For .repx templates, we just save metadata to Supabase
+        // The actual .repx is stored in Google Drive via the Reporting API
+        const { error } = await supabase.from("certificate_templates").insert({
+          tenant_id: profile?.tenant_id!,
+          name,
+          template_type: "repx",
+          content_template: "", // Empty for .repx - actual template is in Drive
+          created_by: (await supabase.auth.getUser()).data.user?.id,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("certificate_templates").insert({
+          tenant_id: profile?.tenant_id!,
+          name,
+          template_type: "laboral",
+          content_template: content,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Plantilla creada exitosamente");
@@ -67,41 +84,86 @@ export function CertificateTemplateForm({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Plantilla de Certificación</DialogTitle>
           <DialogDescription>
-            Usa las variables entre llaves dobles para insertar datos dinámicos del empleado y la empresa.
+            Elige entre un editor HTML tradicional o sube un archivo .repx para documentos profesionales.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label>Variables disponibles</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {variables.map(v => (
-                <Badge key={v} variant="secondary" className="text-xs font-mono cursor-default">
-                  {`{{${v}}}`}
-                </Badge>
-              ))}
+
+        <Tabs value={templateType} onValueChange={(v) => setTemplateType(v as any)}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="html" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Editor HTML
+            </TabsTrigger>
+            <TabsTrigger value="repx" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Plantilla .repx
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="html" className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Variables disponibles</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {variables.map(v => (
+                  <Badge key={v} variant="secondary" className="text-xs font-mono cursor-default">
+                    {`{{${v}}}`}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Nombre de la Plantilla</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Contenido de la Certificación</Label>
-            <RichTextEditor content={content} onChange={setContent} />
-          </div>
-        </div>
+            <div className="space-y-2">
+              <Label>Nombre de la Plantilla</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Contenido de la Certificación</Label>
+              <RichTextEditor content={content} onChange={setContent} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="repx" className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nombre de la Plantilla</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <div className="border rounded-lg p-6 text-center space-y-4">
+              <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Sube un archivo .repx para generar documentos con formato profesional.
+              </p>
+              <Button onClick={() => setShowDesigner(true)} className="gap-2">
+                <Upload className="h-4 w-4" />
+                Subir Plantilla .repx
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!name || !content || mutation.isPending}>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!name || templateType === "html" && !content || mutation.isPending}
+          >
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Guardar Plantilla
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ReportDesignerDialog
+        open={showDesigner}
+        onOpenChange={setShowDesigner}
+        templateKey={name.replace(/\s+/g, '-').toLowerCase()}
+        onSave={(key) => {
+          toast.success(`Plantilla "${key}" guardada`);
+          onOpenChange(false);
+        }}
+      />
     </Dialog>
   );
 }

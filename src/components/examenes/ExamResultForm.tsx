@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { coreSupabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useDropzone } from "react-dropzone";
 import {
@@ -67,6 +69,7 @@ export function ExamResultForm({
   exam,
 }: ExamResultFormProps) {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -126,23 +129,35 @@ export function ExamResultForm({
       // Upload file if provided
       if (file) {
         setUploading(true);
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${exam.id}-${Date.now()}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("exam-documents")
-          .upload(fileName, file);
+        const base64data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]);
+          };
+          reader.onerror = error => reject(error);
+        });
 
-        if (uploadError) {
+        const platformId = import.meta.env.VITE_PLATFORM_ID;
+        const { data: uploadData, error: uploadError } = await coreSupabase.functions.invoke('google-drive-upload', {
+          body: {
+            platform_id: platformId,
+            tenantId: profile?.tenant_id,
+            fileName: `${exam.id}-${Date.now()}.${file.name.split('.').pop()}`,
+            fileBase64: base64data,
+            mimeType: file.type || 'application/octet-stream',
+            path_components: ['Soportes', 'Evidencias', 'examenes', exam.id]
+          }
+        });
+
+        if (uploadError || !uploadData?.success) {
           setUploading(false);
-          throw new Error("Error al subir el documento: " + uploadError.message);
+          throw new Error(uploadError?.message || uploadData?.error || 'Error al subir el documento');
         }
 
-        const { data: urlData } = supabase.storage
-          .from("exam-documents")
-          .getPublicUrl(fileName);
-
-        documentUrl = urlData.publicUrl;
+        documentUrl = `https://drive.google.com/uc?id=${uploadData.fileId}`;
         setUploading(false);
       }
 

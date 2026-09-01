@@ -210,7 +210,7 @@ function Section({ title, icon: Icon, to, children }: any) {
           <Icon className="h-5 w-5 text-primary" /> 
           {title}
         </h2>
-        <Button asChild size="sm" variant="ghost">
+        <Button asChild size="default" variant="ghost">
           <Link to={to}>
             Ver detalles <ArrowRight className="h-4 w-4 ml-1" />
           </Link>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createNotification } from "@/lib/createNotification";
 import {
   Dialog,
   DialogContent,
@@ -165,13 +166,41 @@ export function DotacionForm({ open, onOpenChange, dotacion, defaultEmployeeId }
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["dotacion"] });
       queryClient.invalidateQueries({ queryKey: ["dotacion-stats"] });
       queryClient.invalidateQueries({ queryKey: ["employee-dotacion"] });
       toast.success(
         isEditing ? "Dotación actualizada correctamente" : `${items.length} elemento(s) registrado(s) correctamente`
       );
+
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("tenant_id")
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .single();
+        if (employeeId && profile?.tenant_id) {
+          const { data: emp } = await supabase
+            .from("employees" as any)
+            .select("user_id, first_name, last_name")
+            .eq("id", employeeId)
+            .single();
+          if (emp?.user_id) {
+            const itemNames = items.map(i => i.item_name).join(", ");
+            await createNotification({
+              userId: emp.user_id,
+              tenantId: profile.tenant_id,
+              title: isEditing ? "Dotación actualizada" : "Dotación entregada",
+              message: isEditing
+                ? `Su dotación fue actualizada: ${itemNames}.`
+                : `Se le entregó dotación: ${itemNames}.`,
+              type: "info",
+            });
+          }
+        }
+      } catch { /* silent */ }
+
       onOpenChange(false);
     },
     onError: (error) => {

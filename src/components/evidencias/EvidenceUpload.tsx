@@ -12,7 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, Upload, Trash2, Eye, FileImage, FileText, File } from "lucide-react";
+import { Loader2, Upload, Trash2, Eye, FileImage, FileText, File, Camera } from "lucide-react";
+import { PhotoToPdfDialog } from "@/components/pdf/PhotoToPdfDialog";
+import { OcrProcessor } from "@/components/pdf/OcrProcessor";
+import { UnifiedPdfViewer } from "@/components/pdf/UnifiedPdfViewer";
 import { toast } from "sonner";
 
 interface EvidenceUploadProps {
@@ -187,23 +190,38 @@ export function EvidenceUpload({ module, recordId, employeeId, readOnly = false 
             )}
           </div>
           {!readOnly && (
-            <div className="relative">
-              <Input
-                type="file"
-                multiple
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                disabled={uploading}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Input
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  disabled={uploading}
+                />
+                <Button size="sm" variant="outline" disabled={uploading}>
+                  {uploading ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Upload className="mr-1 h-3 w-3" />
+                  )}
+                  Adjuntar
+                </Button>
+              </div>
+              <PhotoToPdfDialog
+                onFilesReady={async (files) => {
+                  for (const file of files) {
+                    await uploadMutation.mutateAsync(file);
+                  }
+                }}
+                trigger={
+                  <Button size="sm" variant="outline">
+                    <Camera className="mr-1 h-3 w-3" />
+                    Foto → PDF
+                  </Button>
+                }
               />
-              <Button size="sm" variant="outline" disabled={uploading}>
-                {uploading ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                ) : (
-                  <Upload className="mr-1 h-3 w-3" />
-                )}
-                Adjuntar
-              </Button>
             </div>
           )}
         </div>
@@ -266,6 +284,8 @@ export function EvidenceUpload({ module, recordId, employeeId, readOnly = false 
                   alt="Evidencia"
                   className="max-w-full max-h-96 rounded-lg border border-border"
                 />
+              ) : previewUrl.toLowerCase().endsWith('.pdf') ? (
+                <UnifiedPdfViewer url={previewUrl} className="w-full h-[70vh]" />
               ) : (
                 <div className="text-center space-y-3">
                   <FileText className="h-16 w-16 text-muted-foreground mx-auto" />

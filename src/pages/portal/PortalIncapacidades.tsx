@@ -19,9 +19,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Plus, Loader2, HeartPulse, Download, FileX } from 'lucide-react';
+import { Icd10Selector } from '@/components/ui/icd10-selector';
+import type { Icd10Diagnosis } from '@/lib/icd10-utils';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { safeNewDate } from "@/lib/utils";
 import { toast } from 'sonner';
+import { createBulkNotifications } from '@/lib/createNotification';
 
 const estadoBadge: Record<string, JSX.Element> = {
   registrada: <Badge variant="secondary">Registrada</Badge>,
@@ -40,6 +43,7 @@ export default function PortalIncapacidades() {
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [diagnostico, setDiagnostico] = useState('');
+  const [diagnosticos, setDiagnosticos] = useState<Icd10Diagnosis[]>([]);
   const [entidad, setEntidad] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -77,7 +81,7 @@ export default function PortalIncapacidades() {
     catch { return 0; }
   })();
 
-  const reset = () => { setTipo('enfermedad_general'); setFechaInicio(''); setFechaFin(''); setDiagnostico(''); setEntidad(''); setFile(null); };
+  const reset = () => { setTipo('enfermedad_general'); setFechaInicio(''); setFechaFin(''); setDiagnostico(''); setDiagnosticos([]); setEntidad(''); setFile(null); };
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -111,11 +115,33 @@ export default function PortalIncapacidades() {
         tenant_id: employee.tenant_id,
         employee_id: employee.id,
         tipo, fecha_inicio: fechaInicio, fecha_fin: fechaFin, dias,
-        diagnostico: diagnostico || null, entidad: entidad || null,
+        diagnostico: diagnostico || (diagnosticos.length > 0 ? diagnosticos.map(d => d.es).join('; ') : null),
+        codigo_cie: diagnosticos.length > 0 ? diagnosticos[0].code : null,
+        diagnosticos_json: diagnosticos.length > 0 ? diagnosticos : null,
+        entidad: entidad || null,
         documento_url: documentUrl, documento_size: file.size, estado: 'registrada', origen: 'portal_empleado',
       });
       if (error) throw error;
       await log('reporto_incapacidad', { entity_type: 'incapacidad', metadata: { tipo, dias } });
+
+      // Notify admin users
+      const { data: adminUsers } = await portalSupabase
+        .from('profiles' as any)
+        .select('user_id')
+        .eq('tenant_id', employee.tenant_id)
+        .eq('role', 'admin');
+
+      if (adminUsers && adminUsers.length > 0) {
+        await createBulkNotifications(
+          adminUsers.map((u: any) => u.user_id),
+          employee.tenant_id,
+          {
+            title: 'Nueva incapacidad reportada',
+            message: `${employee.first_name} ${employee.last_name} reportó una incapacidad de tipo "${tipo}" por ${dias} día(s).`,
+            type: 'warning',
+          }
+        );
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-incapacidades'] });
@@ -160,6 +186,16 @@ export default function PortalIncapacidades() {
                   <p className="text-sm text-muted-foreground">
                     {format(safeNewDate(i.fecha_inicio), 'dd/MM/yyyy')} → {format(safeNewDate(i.fecha_fin), 'dd/MM/yyyy')} · {i.dias} día(s)
                   </p>
+                  {i.diagnosticos_json && i.diagnosticos_json.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {i.diagnosticos_json.map((d: Icd10Diagnosis) => (
+                        <Badge key={d.code} variant="outline" className="text-xs font-mono">{d.code} · {d.es}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {(!i.diagnosticos_json || i.diagnosticos_json.length === 0) && i.codigo_cie && (
+                    <Badge variant="outline" className="text-xs font-mono mt-1">{i.codigo_cie}</Badge>
+                  )}
                   {i.entidad && <p className="text-xs text-muted-foreground">{i.entidad}</p>}
                 </div>
                 <div className="flex items-center gap-2">
@@ -202,7 +238,8 @@ export default function PortalIncapacidades() {
             </div>
             <p className="text-sm text-muted-foreground">Duración: <strong>{dias} día(s)</strong></p>
             <div><Label>Entidad (EPS / ARL)</Label><Input value={entidad} onChange={(e) => setEntidad(e.target.value)} /></div>
-            <div><Label>Diagnóstico (opcional)</Label><Textarea rows={2} value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} /></div>
+            <div><Label>Diagnóstico CIE-10 (opcional, hasta 3)</Label><Icd10Selector value={diagnosticos} onChange={setDiagnosticos} /></div>
+            <div><Label>Observaciones clínicas (opcional)</Label><Textarea rows={2} value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} placeholder="Descripción adicional..." /></div>
             <div>
               <Label>PDF de la incapacidad *</Label>
               <Input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />

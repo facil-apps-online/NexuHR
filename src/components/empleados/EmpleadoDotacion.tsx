@@ -121,10 +121,7 @@ export function EmpleadoDotacion({ employeeId }: EmpleadoDotacionProps) {
                           size="sm"
                           className="h-auto p-0"
                           onClick={() => {
-                            const { data } = supabase.storage
-                              .from("signatures")
-                              .getPublicUrl(item.signature_url!);
-                            setViewSignatureUrl(data.publicUrl);
+                            setViewSignatureUrl(item.signature_url!);
                           }}
                         >
                           <Badge className="bg-success/10 text-success border-success/20 cursor-pointer">

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarPlus, Download, Loader2 } from "lucide-react";
+import { CalendarPlus, Download, Loader2, BarChart3, AlertTriangle, CheckCircle, Clock, Users } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
@@ -161,6 +163,43 @@ export default function Examenes() {
     toast.success("Archivo exportado correctamente");
   };
 
+  // Report analytics
+  const allExams = exams || [];
+  const examStats = useMemo(() => {
+    const byType = { Ingreso: 0, Periódico: 0, Retiro: 0 };
+    const byStatus = { pendiente: 0, vigente: 0, vencido: 0, proximo_vencer: 0 };
+    const byEntity: Record<string, number> = {};
+    let totalDays = 0;
+    let countWithDates = 0;
+
+    for (const e of allExams) {
+      if (e.exam_type && byType[e.exam_type as keyof typeof byType] !== undefined) {
+        byType[e.exam_type as keyof typeof byType]++;
+      }
+      if (e.status && byStatus[e.status as keyof typeof byStatus] !== undefined) {
+        byStatus[e.status as keyof typeof byStatus]++;
+      }
+      if (e.entity) {
+        byEntity[e.entity] = (byEntity[e.entity] || 0) + 1;
+      }
+      if (e.scheduled_date && e.exam_date) {
+        const d1 = new Date(e.scheduled_date);
+        const d2 = new Date(e.exam_date);
+        totalDays += Math.abs(d2.getTime() - d1.getTime()) / 86400000;
+        countWithDates++;
+      }
+    }
+
+    const topEntities = Object.entries(byEntity)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    const avgDays = countWithDates > 0 ? Math.round(totalDays / countWithDates) : 0;
+    const coverage = allExams.length > 0 ? Math.round(((byStatus.vigente || 0) / allExams.length) * 100) : 0;
+
+    return { byType, byStatus, topEntities, avgDays, coverage };
+  }, [allExams]);
+
   // Handlers
   const handleViewDetails = (exam: ExamWithEmployee) => {
     setSelectedExam(exam);
@@ -233,9 +272,13 @@ export default function Examenes() {
             <TabsTrigger value="ingreso">Ingreso</TabsTrigger>
             <TabsTrigger value="periodico">Periódicos</TabsTrigger>
             <TabsTrigger value="retiro">Retiro</TabsTrigger>
+            <TabsTrigger value="reportes">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Reportes
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab}>
+          <TabsContent value={activeTab !== 'reportes' ? activeTab : 'all'}>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -250,6 +293,128 @@ export default function Examenes() {
                 onCreateVigilancia={handleCreateVigilancia}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="reportes" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Distribución por tipo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Object.entries(examStats.byType).map(([tipo, count]) => {
+                      const pct = allExams.length > 0 ? Math.round((count / allExams.length) * 100) : 0;
+                      return (
+                        <div key={tipo} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{tipo}</span>
+                            <span className="text-muted-foreground">{count} ({pct}%)</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CheckCircle className="h-5 w-5 text-success" />
+                    Estado de exámenes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 rounded-lg bg-success/10">
+                      <p className="text-2xl font-bold text-success">{examStats.byStatus.vigente}</p>
+                      <p className="text-xs text-muted-foreground">Vigentes</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-destructive/10">
+                      <p className="text-2xl font-bold text-destructive">{examStats.byStatus.vencido}</p>
+                      <p className="text-xs text-muted-foreground">Vencidos</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-warning/10">
+                      <p className="text-2xl font-bold text-warning">{examStats.byStatus.proximo_vencer}</p>
+                      <p className="text-xs text-muted-foreground">Próximos a vencer</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted">
+                      <p className="text-2xl font-bold">{examStats.byStatus.pendiente}</p>
+                      <p className="text-xs text-muted-foreground">Pendientes</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-center">
+                    <Badge className={examStats.coverage >= 80 ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}>
+                      Cobertura vigente: {examStats.coverage}%
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="h-5 w-5 text-primary" />
+                    Top entidades realizadoras
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {examStats.topEntities.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Sin datos</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {examStats.topEntities.map(([entity, count], idx) => {
+                        const max = examStats.topEntities[0]?.[1] || 1;
+                        const pct = (count / max) * 100;
+                        return (
+                          <div key={entity} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground">{idx + 1}.</span>
+                                <span className="font-medium">{entity}</span>
+                              </div>
+                              <span className="text-muted-foreground">{count} examen{count > 1 ? 'es' : ''}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Resumen</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-3 text-center">
+                  <div>
+                    <p className="text-2xl font-bold">{allExams.length}</p>
+                    <p className="text-sm text-muted-foreground">Total exámenes</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{examStats.avgDays}</p>
+                    <p className="text-sm text-muted-foreground">Días promedio programado→realizado</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{examStats.coverage}%</p>
+                    <p className="text-sm text-muted-foreground">Cobertura vigente</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

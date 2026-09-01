@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createNotification } from "@/lib/createNotification";
 import {
   Dialog,
   DialogContent,
@@ -150,7 +151,7 @@ export function ExamForm({ open, onOpenChange, exam, defaultEmployeeId }: ExamFo
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["exams"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-exam-stats"] });
       toast.success(
@@ -158,6 +159,36 @@ export function ExamForm({ open, onOpenChange, exam, defaultEmployeeId }: ExamFo
           ? "Examen actualizado correctamente"
           : "Examen programado correctamente"
       );
+
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("tenant_id")
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .single();
+        const formValues = form.getValues();
+        if (formValues.employee_id && profile?.tenant_id) {
+          const { data: emp } = await supabase
+            .from("employees" as any)
+            .select("user_id, first_name, last_name")
+            .eq("id", formValues.employee_id)
+            .single();
+          if (emp?.user_id) {
+            const examLabel = isEditing ? "Examen actualizado" : "Examen programado";
+            const examMsg = isEditing
+              ? `Su examen ${formValues.exam_type} fue actualizado.`
+              : `Se le programó un examen ${formValues.exam_type} para el ${formValues.scheduled_date}.`;
+            await createNotification({
+              userId: emp.user_id,
+              tenantId: profile.tenant_id,
+              title: examLabel,
+              message: examMsg,
+              type: "info",
+            });
+          }
+        }
+      } catch { /* silent */ }
+
       form.reset();
       onOpenChange(false);
     },

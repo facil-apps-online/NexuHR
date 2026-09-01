@@ -68,7 +68,7 @@ export default function PortalPerfil() {
 
   return (
     <EmployeePortalLayout>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold">Mi perfil</h1>
         <Button variant="outline" onClick={() => navigate(`${basePath}/cambiar-clave`)}>
           <KeyRound className="h-4 w-4 mr-2" /> Cambiar contraseña
@@ -180,7 +180,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   return (
     <div className="space-y-1">
       <Label className="text-sm">{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-12" />
     </div>
   );
 }

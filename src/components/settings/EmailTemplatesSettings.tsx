@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, FileText, GraduationCap, Users, Package, ClipboardCheck, Stethoscope, Info } from "lucide-react";
+import { Loader2, Save, FileText, GraduationCap, Users, Package, ClipboardCheck, Stethoscope, Info, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 interface EmailModuleConfig {
@@ -28,6 +28,7 @@ interface EmailTemplates {
   dotacionEntrega: EmailModuleConfig;
   evaluacionesPendientes: EmailModuleConfig;
   vigilanciaSeguimiento: EmailModuleConfig;
+  comunicacionEnviada: EmailModuleConfig;
 }
 
 const defaultTemplates: EmailTemplates = {
@@ -126,6 +127,23 @@ Por favor comuníquese con el área de SST para confirmar su asistencia.
 Atentamente,
 {{nombre_empresa}}`,
   },
+  comunicacionEnviada: {
+    enabled: false,
+    daysBeforeExpiry: 0,
+    subject: "Nueva comunicación: {{asunto_comunicacion}}",
+    body: `Estimado/a {{nombre_empleado}},
+
+Se ha enviado una nueva {{tipo_comunicacion}} desde {{nombre_empresa}}.
+
+Asunto: {{asunto_comunicacion}}
+Tipo: {{tipo_comunicacion}}
+Prioridad: {{prioridad}}
+
+Por favor ingrese al portal de empleados para revisar el contenido completo de la comunicación.
+
+Atentamente,
+{{nombre_empresa}}`,
+  },
 };
 
 const templateTypes = [
@@ -177,6 +195,13 @@ const templateTypes = [
     description: "Recordatorio de seguimientos programados",
     icon: Stethoscope,
     variables: ["nombre_empleado", "tipo_vigilancia", "fecha_seguimiento", "nombre_empresa"],
+  },
+  {
+    key: "comunicacionEnviada" as keyof EmailTemplates,
+    title: "Comunicación enviada",
+    description: "Notificación de nueva comunicación a empleados",
+    icon: Mail,
+    variables: ["nombre_empleado", "asunto_comunicacion", "tipo_comunicacion", "prioridad", "nombre_empresa"],
   },
 ];
 

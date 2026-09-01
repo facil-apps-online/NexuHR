@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createNotification } from "@/lib/createNotification";
 import {
   Dialog,
   DialogContent,
@@ -172,13 +173,41 @@ export function CursoForm({ open, onOpenChange, curso, defaultEmployeeId }: Curs
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["courses"] });
       queryClient.invalidateQueries({ queryKey: ["courses-stats"] });
       queryClient.invalidateQueries({ queryKey: ["employee-courses"] });
       toast.success(
         isEditing ? "Curso actualizado correctamente" : "Curso registrado correctamente"
       );
+
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("tenant_id")
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .single();
+        const formValues = form.getValues();
+        if (formValues.employee_id && profile?.tenant_id) {
+          const { data: emp } = await supabase
+            .from("employees" as any)
+            .select("user_id, first_name, last_name")
+            .eq("id", formValues.employee_id)
+            .single();
+          if (emp?.user_id) {
+            await createNotification({
+              userId: emp.user_id,
+              tenantId: profile.tenant_id,
+              title: isEditing ? "Curso actualizado" : "Curso asignado",
+              message: isEditing
+                ? `Su curso "${formValues.course_name}" fue actualizado.`
+                : `Se le asignó el curso "${formValues.course_name}".`,
+              type: "info",
+            });
+          }
+        }
+      } catch { /* silent */ }
+
       form.reset();
       onOpenChange(false);
     },

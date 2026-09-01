@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Printer, FileText } from "lucide-react";
+import { Printer, FileText, Download, Loader2, AlertTriangle } from "lucide-react";
+import { useReportApi } from "@/hooks/useReportApi";
+import { useReportingIntegration } from "@/hooks/useReportingIntegration";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -20,6 +23,12 @@ export function CertificateGenerator({ open, onOpenChange }: Props) {
   const [employeeId, setEmployeeId] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [dirigidaA, setDirigidaA] = useState("");
+  const { data: integration, isLoading: integrationLoading } = useReportingIntegration();
+
+  const { generatePdf, loading: generatingPdf } = useReportApi({
+    apiUrl: integration?.apiUrl || "",
+    apiKey: integration?.apiKey || "",
+  });
 
   const { data: employees } = useQuery({
     queryKey: ["employees-list"],
@@ -77,6 +86,29 @@ export function CertificateGenerator({ open, onOpenChange }: Props) {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(val);
 
+  const buildReportData = () => {
+    if (!employee || !contract) return null;
+    const now = new Date();
+    const salary = contract.base_salary || 0;
+
+    return {
+      nombre_empleado: `${employee.first_name} ${employee.last_name}`,
+      tipo_documento: employee.document_type || "CC",
+      numero_documento: employee.document_number || "",
+      cargo: contract.position || "N/A",
+      departamento: contract.department || "N/A",
+      fecha_inicio: contract.start_date || employee.hire_date || "N/A",
+      tipo_contrato: contract.contract_type || "N/A",
+      salario_base: formatCurrency(salary),
+      salario_letras: "",
+      empresa: tenant?.name || "La Empresa",
+      dirigida_a: dirigidaA || "A QUIEN INTERESE",
+      dia: now.getDate().toString(),
+      mes: monthNames[now.getMonth()],
+      año: now.getFullYear().toString(),
+    };
+  };
+
   const generateContent = () => {
     if (!employee || !template) return "";
     const now = new Date();
@@ -100,6 +132,43 @@ export function CertificateGenerator({ open, onOpenChange }: Props) {
   };
 
   const content = generateContent();
+  const isRepxTemplate = template?.template_type === "repx";
+  const isConfigured = integration?.isConfigured && integration?.apiKey;
+
+  const handleGeneratePdf = async () => {
+    if (!template || !employee) return;
+
+    if (!isConfigured) {
+      toast.error("La API de reportes no está configurada. Ve a Configuración → Integraciones.");
+      return;
+    }
+
+    try {
+      const data = buildReportData();
+      if (!data) {
+        toast.error("No hay datos del contrato para generar el PDF");
+        return;
+      }
+
+      const result = await generatePdf({
+        templateKey: template.name.replace(/\s+/g, '-').toLowerCase(),
+        data,
+        asBase64: false,
+      });
+
+      if (result instanceof Blob) {
+        const url = URL.createObjectURL(result);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `certificacion-${employee.first_name}-${employee.last_name}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("PDF generado exitosamente");
+      }
+    } catch (error) {
+      toast.error("Error al generar el PDF");
+    }
+  };
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
@@ -178,21 +247,55 @@ export function CertificateGenerator({ open, onOpenChange }: Props) {
             </div>
           )}
 
-          {content && (
+          {isRepxTemplate && !isConfigured && (
+            <div className="border rounded-lg p-3 bg-destructive/10 text-sm text-destructive flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">API de reportes no configurada</p>
+                <p>Ve a Configuración → Integraciones para configurar la conexión.</p>
+              </div>
+            </div>
+          )}
+
+          {content && !isRepxTemplate && (
             <Card>
               <CardContent className="pt-6">
                 <div className="prose prose-sm max-w-none font-serif" dangerouslySetInnerHTML={{ __html: content }} />
               </CardContent>
             </Card>
           )}
+
+          {isRepxTemplate && isConfigured && (
+            <div className="border rounded-lg p-6 text-center space-y-4 bg-muted/30">
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Plantilla profesional. El PDF se generará dinámicamente con formato de alta calidad.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
-          {content && (
-            <Button className="gap-2" onClick={handlePrint}>
-              <Printer className="h-4 w-4" />
-              Imprimir
+          {isRepxTemplate ? (
+            <Button
+              className="gap-2"
+              onClick={handleGeneratePdf}
+              disabled={!template || !employee || generatingPdf || !isConfigured}
+            >
+              {generatingPdf ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Descargar PDF
             </Button>
+          ) : (
+            content && (
+              <Button className="gap-2" onClick={handlePrint}>
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </Button>
+            )
           )}
         </DialogFooter>
       </DialogContent>

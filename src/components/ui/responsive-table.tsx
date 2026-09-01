@@ -55,50 +55,51 @@ export function ResponsiveTable<T>({
 
   return (
     <div className={cn("rounded-xl border border-border bg-card shadow-card overflow-hidden", className)}>
-      <Table>
-        {/* Desktop header */}
-        <TableHeader>
-          <TableRow className="bg-muted/50">
-            {desktopColumns.map((col) => (
-              <TableHead key={col.key} className={col.headerClassName}>
-                {col.label}
-              </TableHead>
-            ))}
-            {actions && <TableHead className="w-12" />}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.length > 0 ? (
-            data.map((item) => (
-              <TableRow
-                key={getKey(item)}
-                className={cn("hover:bg-muted/30", onRowClick && "cursor-pointer")}
-                onClick={() => onRowClick?.(item)}
-              >
-                {desktopColumns.map((col) => (
-                  <TableCell key={col.key} className={col.className}>
-                    {col.render(item)}
-                  </TableCell>
-                ))}
-                {actions && (
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    {actions(item)}
-                  </TableCell>
-                )}
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell
-                colSpan={desktopColumns.length + (actions ? 1 : 0)}
-                className="text-center py-8 text-muted-foreground"
-              >
-                {emptyMessage}
-              </TableCell>
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              {desktopColumns.map((col) => (
+                <TableHead key={col.key} className={col.headerClassName}>
+                  {col.label}
+                </TableHead>
+              ))}
+              {actions && <TableHead className="w-12" />}
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {data.length > 0 ? (
+              data.map((item) => (
+                <TableRow
+                  key={getKey(item)}
+                  className={cn("hover:bg-muted/30", onRowClick && "cursor-pointer")}
+                  onClick={() => onRowClick?.(item)}
+                >
+                  {desktopColumns.map((col) => (
+                    <TableCell key={col.key} className={col.className}>
+                      {col.render(item)}
+                    </TableCell>
+                  ))}
+                  {actions && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {actions(item)}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={desktopColumns.length + (actions ? 1 : 0)}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Mobile cards */}
       <div className="md:hidden divide-y divide-border">

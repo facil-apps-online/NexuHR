@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, GraduationCap, AlertTriangle, CheckCircle, Clock, Loader2, Download } from "lucide-react";
+import { Plus, GraduationCap, AlertTriangle, CheckCircle, Clock, Loader2, Download, BarChart3, Users, Award } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { safeNewDate } from "@/lib/utils";
@@ -118,6 +120,39 @@ export default function Cursos() {
     toast.success("Archivo exportado correctamente");
   };
 
+  // Report analytics
+  const courseReportData = useMemo(() => {
+    const all = courses || [];
+    const byProvider: Record<string, number> = {};
+    const byStatus = { completado: 0, pendiente: 0, en_progreso: 0, vencido: 0 };
+    let totalHours = 0;
+    let hoursCount = 0;
+    let expired = 0;
+    const expiringSoon: typeof all = [];
+
+    const now = new Date();
+    const thirtyDays = new Date(now.getTime() + 30 * 86400000);
+
+    for (const c of all) {
+      if (c.provider) byProvider[c.provider] = (byProvider[c.provider] || 0) + 1;
+      if (c.status && byStatus[c.status as keyof typeof byStatus] !== undefined) {
+        byStatus[c.status as keyof typeof byStatus]++;
+      }
+      if (c.duration_hours) { totalHours += c.duration_hours; hoursCount++; }
+      if (c.expiry_date) {
+        const exp = new Date(c.expiry_date);
+        if (exp < now) expired++;
+        else if (exp <= thirtyDays) expiringSoon.push(c);
+      }
+    }
+
+    const topProviders = Object.entries(byProvider).sort(([, a], [, b]) => b - a).slice(0, 5);
+    const avgHours = hoursCount > 0 ? Math.round(totalHours / hoursCount) : 0;
+    const completionRate = all.length > 0 ? Math.round((byStatus.completado / all.length) * 100) : 0;
+
+    return { byStatus, topProviders, totalHours, avgHours, expired, expiringSoon: expiringSoon.slice(0, 10), completionRate };
+  }, [courses]);
+
   // Handlers
   const handleNew = () => { setSelected(null); setShowForm(true); };
   const handleEdit = (c: CourseWithEmployee) => { setSelected(c); setShowForm(true); };
@@ -195,9 +230,13 @@ export default function Cursos() {
             <TabsTrigger value="pendiente">Pendientes</TabsTrigger>
             <TabsTrigger value="en_progreso">En progreso</TabsTrigger>
             <TabsTrigger value="vencido">Vencidos</TabsTrigger>
+            <TabsTrigger value="reportes">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Reportes
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab}>
+          <TabsContent value={activeTab !== 'reportes' ? activeTab : 'all'}>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -210,6 +249,134 @@ export default function Cursos() {
                 onDelete={handleDelete}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="reportes" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Estado de certificaciones
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center p-3 rounded-lg bg-success/10">
+                      <p className="text-2xl font-bold text-success">{courseReportData.byStatus.completado}</p>
+                      <p className="text-xs text-muted-foreground">Completados</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-warning/10">
+                      <p className="text-2xl font-bold text-warning">{courseReportData.byStatus.pendiente + courseReportData.byStatus.en_progreso}</p>
+                      <p className="text-xs text-muted-foreground">En proceso</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-destructive/10">
+                      <p className="text-2xl font-bold text-destructive">{courseReportData.expired}</p>
+                      <p className="text-xs text-muted-foreground">Vencidos</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-primary/10">
+                      <p className="text-2xl font-bold text-primary">{courseReportData.totalHours}h</p>
+                      <p className="text-xs text-muted-foreground">Total horas</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-center">
+                    <Badge className={courseReportData.completionRate >= 70 ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}>
+                      Tasa de completación: {courseReportData.completionRate}%
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="h-5 w-5 text-primary" />
+                    Top proveedores
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {courseReportData.topProviders.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Sin datos</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {courseReportData.topProviders.map(([provider, count], idx) => {
+                        const max = courseReportData.topProviders[0]?.[1] || 1;
+                        const pct = (count / max) * 100;
+                        return (
+                          <div key={provider} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground">{idx + 1}.</span>
+                                <span className="font-medium">{provider}</span>
+                              </div>
+                              <span className="text-muted-foreground">{count}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {courseReportData.expiringSoon.length > 0 && (
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <AlertTriangle className="h-5 w-5 text-warning" />
+                      Certificados próximos a vencer (30 días)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {courseReportData.expiringSoon.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between p-2 rounded border bg-muted/30 text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-medium truncate">
+                              {c.employees ? `${c.employees.first_name} ${c.employees.last_name}` : 'Sin asignar'}
+                            </span>
+                            <span className="text-muted-foreground">—</span>
+                            <span className="truncate">{c.course_name}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs shrink-0 ml-2">
+                            {c.expiry_date ? format(safeNewDate(c.expiry_date), 'dd/MM/yyyy') : '—'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Resumen</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold">{allCourses.length}</p>
+                    <p className="text-sm text-muted-foreground">Total cursos</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{courseReportData.totalHours}h</p>
+                    <p className="text-sm text-muted-foreground">Horas totales</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{courseReportData.avgHours}h</p>
+                    <p className="text-sm text-muted-foreground">Promedio por curso</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{courseReportData.expired}</p>
+                    <p className="text-sm text-muted-foreground">Certificados vencidos</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

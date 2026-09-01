@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ShieldCheck, Users, AlertTriangle, CheckCircle, Loader2, Download } from "lucide-react";
+import { Plus, ShieldCheck, Users, AlertTriangle, CheckCircle, Loader2, Download, BarChart3, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { safeNewDate } from "@/lib/utils";
@@ -143,6 +145,26 @@ export default function Vigilancias() {
     toast.success("Archivo exportado correctamente");
   };
 
+  // Report analytics
+  const vigilanciaReport = useMemo(() => {
+    const all = vigilancias || [];
+    const byType: Record<string, number> = {};
+    const followUpPending: typeof all = [];
+    const now = new Date();
+    const sevenDays = new Date(now.getTime() + 7 * 86400000);
+
+    for (const v of all) {
+      if (v.vigilancia_type) byType[v.vigilancia_type] = (byType[v.vigilancia_type] || 0) + 1;
+      if (v.follow_up_date && v.status === 'activa') {
+        const fup = new Date(v.follow_up_date);
+        if (fup <= sevenDays) followUpPending.push(v);
+      }
+    }
+
+    const topTypes = Object.entries(byType).sort(([, a], [, b]) => b - a).slice(0, 8);
+    return { byType, topTypes, followUpPending: followUpPending.slice(0, 10) };
+  }, [vigilancias]);
+
   // Handlers
   const handleNew = () => { setSelected(null); setShowForm(true); };
   const handleEdit = (v: VigilanciaWithEmployee) => { setSelected(v); setShowForm(true); };
@@ -222,9 +244,13 @@ export default function Vigilancias() {
             <TabsTrigger value="activa">Activas</TabsTrigger>
             <TabsTrigger value="inactiva">Inactivas</TabsTrigger>
             <TabsTrigger value="vencida">Vencidas</TabsTrigger>
+            <TabsTrigger value="reportes">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Reportes
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab}>
+          <TabsContent value={activeTab !== 'reportes' ? activeTab : 'all'}>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -238,6 +264,130 @@ export default function Vigilancias() {
                 onChangeStatus={handleChangeStatus}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="reportes" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Distribución por tipo de vigilancia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {vigilanciaReport.topTypes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Sin datos</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {vigilanciaReport.topTypes.map(([type, count], idx) => {
+                        const max = vigilanciaReport.topTypes[0]?.[1] || 1;
+                        const pct = (count / max) * 100;
+                        return (
+                          <div key={type} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground">{idx + 1}.</span>
+                                <span className="font-medium">{type}</span>
+                              </div>
+                              <span className="text-muted-foreground">{count}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-5 w-5 text-success" />
+                    Estado actual
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center p-3 rounded-lg bg-success/10">
+                      <p className="text-2xl font-bold text-success">{statsActive}</p>
+                      <p className="text-xs text-muted-foreground">Activas</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted">
+                      <p className="text-2xl font-bold">{statsInactive}</p>
+                      <p className="text-xs text-muted-foreground">Inactivas</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-destructive/10">
+                      <p className="text-2xl font-bold text-destructive">{statsExpired}</p>
+                      <p className="text-xs text-muted-foreground">Vencidas</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-primary/10">
+                      <p className="text-2xl font-bold text-primary">{statsData.length}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-center">
+                    <Badge className={statsActive > 0 ? 'bg-success/10 text-success border-success/20' : 'bg-muted'}>
+                      {statsData.length > 0 ? Math.round((statsActive / statsData.length) * 100) : 0}% activas
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {vigilanciaReport.followUpPending.length > 0 && (
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Clock className="h-5 w-5 text-warning" />
+                      Seguimientos próximos (7 días)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {vigilanciaReport.followUpPending.map((v) => (
+                        <div key={v.id} className="flex items-center justify-between p-2 rounded border bg-muted/30 text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-medium truncate">
+                              {v.employees ? `${v.employees.first_name} ${v.employees.last_name}` : 'Sin asignar'}
+                            </span>
+                            <span className="text-muted-foreground">—</span>
+                            <span className="truncate">{v.vigilancia_type}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs shrink-0 ml-2">
+                            {v.follow_up_date ? format(safeNewDate(v.follow_up_date), 'dd/MM/yyyy') : '—'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Resumen</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-3 text-center">
+                  <div>
+                    <p className="text-2xl font-bold">{statsData.length}</p>
+                    <p className="text-sm text-muted-foreground">Total vigilancias</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{vigilanciaReport.topTypes.length}</p>
+                    <p className="text-sm text-muted-foreground">Tipos diferentes</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{vigilanciaReport.followUpPending.length}</p>
+                    <p className="text-sm text-muted-foreground">Seguimientos pendientes</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

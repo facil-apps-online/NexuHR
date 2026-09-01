@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Plus, 
   Search, 
@@ -30,6 +30,8 @@ import {
 import { useCommunications, type Communication } from "@/hooks/useCommunications";
 import { useDistributionLists, type DistributionList } from "@/hooks/useDistributionLists";
 import { DistributionListFormModal } from "@/components/comunicaciones/DistributionListFormModal";
+import { CommunicationForm } from "@/components/comunicaciones/CommunicationForm";
+import { CommunicationDetailDialog } from "@/components/comunicaciones/CommunicationDetailDialog";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -117,6 +119,13 @@ export default function Comunicaciones() {
   const { lists, createList, updateList, deleteList } = useDistributionLists();
   const [listModalOpen, setListModalOpen] = useState(false);
   const [editingList, setEditingList] = useState<DistributionList | null>(null);
+  const [showCommForm, setShowCommForm] = useState(false);
+  const [editingComm, setEditingComm] = useState<any | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailComm, setDetailComm] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   const handleSaveList = (list: Partial<DistributionList>) => {
     if (editingList) {
@@ -129,6 +138,13 @@ export default function Comunicaciones() {
       });
     }
   };
+
+  const filteredComms = useMemo(() => comunicacionesData.filter(c => {
+    if (search && !c.subject.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterType !== 'all' && c.communication_type !== filterType) return false;
+    if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+    return true;
+  }), [comunicacionesData, search, filterType, filterStatus]);
 
   const commStats = dashboardStats?.communications || {
     total: 0,
@@ -153,7 +169,7 @@ export default function Comunicaciones() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={() => { setEditingComm(null); setShowCommForm(true); }}>
               <Plus className="h-4 w-4" />
               Nueva Comunicación
             </Button>
@@ -236,33 +252,30 @@ export default function Comunicaciones() {
                 <div className="flex flex-col gap-4 sm:flex-row">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Buscar por asunto..." className="pl-10" />
+                    <Input placeholder="Buscar por asunto..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
                   </div>
-                  <Select>
+                  <Select value={filterType} onValueChange={setFilterType}>
                     <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Lista" />
+                      <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="cargo">Por Cargo</SelectItem>
-                      <SelectItem value="departamento">Por Departamento</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="circular">Circular</SelectItem>
+                      <SelectItem value="memorando">Memorando</SelectItem>
+                      <SelectItem value="notificacion">Notificación</SelectItem>
+                      <SelectItem value="alerta">Alerta</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="enviado">Enviado</SelectItem>
-                      <SelectItem value="programado">Programado</SelectItem>
                       <SelectItem value="borrador">Borrador</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filtrar
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -275,10 +288,10 @@ export default function Comunicaciones() {
               <CardContent>
                 <ResponsiveTable
                   columns={columns}
-                  data={comunicacionesData}
+                  data={filteredComms}
                   getKey={(item) => String(item.id)}
                   actions={(item) => (
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => { setDetailComm(item); setShowDetail(true); }}>
                       Ver Detalle
                     </Button>
                   )}
@@ -353,6 +366,18 @@ export default function Comunicaciones() {
           list={editingList}
           onSave={handleSaveList}
           isSaving={createList.isPending || updateList.isPending}
+        />
+
+        <CommunicationForm
+          open={showCommForm}
+          onOpenChange={(o) => { setShowCommForm(o); if (!o) setEditingComm(null); }}
+          communication={editingComm}
+        />
+
+        <CommunicationDetailDialog
+          open={showDetail}
+          onOpenChange={(o) => { setShowDetail(o); if (!o) setDetailComm(null); }}
+          communication={detailComm}
         />
       </div>
     </MainLayout>
