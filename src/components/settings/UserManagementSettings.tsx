@@ -82,14 +82,16 @@ export function UserManagementSettings() {
     queryFn: async () => {
       if (!tenantId) return [];
 
-      // Fetch profiles
+      // Fetch users via RPC get_tenant_users (enriquecida con la metadata de auth)
       const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
+        .rpc("get_tenant_users", { p_tenant_id: tenantId });
 
       if (profilesError) throw profilesError;
+
+      // La RPC no ordena - se mantiene el orden por created_at desc de la query original
+      const sortedProfiles = (profiles || [])
+        .slice()
+        .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
 
       // Fetch user_roles with roles for all users
       const userIds = profiles.map((p) => p.user_id);
@@ -105,7 +107,7 @@ export function UserManagementSettings() {
       if (rolesError) throw rolesError;
 
       // Map roles to users
-      return profiles.map((p) => ({
+      return sortedProfiles.map((p) => ({
         ...p,
         user_roles: (userRolesData || [])
           .filter((ur) => ur.user_id === p.user_id)

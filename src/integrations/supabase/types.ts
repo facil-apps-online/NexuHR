@@ -2853,6 +2853,23 @@ export type Database = {
         Returns: number
       }
       get_current_employee_id: { Args: never; Returns: string }
+      get_tenant_users: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          id: string
+          user_id: string
+          tenant_id: string | null
+          first_name: string | null
+          last_name: string | null
+          email: string
+          phone: string | null
+          avatar_url: string | null
+          is_super_admin: boolean | null
+          active: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }[]
+      }
       get_user_notification_preferences: {
         Args: { _user_id: string }
         Returns: {

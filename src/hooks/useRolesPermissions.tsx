@@ -91,13 +91,16 @@ export function useRolesPermissions() {
     queryFn: async () => {
       if (!tenantId) return [];
       
+      // Usuarios del tenant via RPC get_tenant_users (enriquecida con la metadata de auth)
       const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("first_name");
+        .rpc("get_tenant_users", { p_tenant_id: tenantId });
       
       if (profilesError) throw profilesError;
+
+      // La RPC no ordena - se mantiene el orden por first_name de la query original
+      const sortedProfiles = (profiles || [])
+        .slice()
+        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
 
       const { data: userRolesData, error: rolesError } = await supabase
         .from("user_roles")
@@ -109,7 +112,7 @@ export function useRolesPermissions() {
       
       if (rolesError) throw rolesError;
 
-      const usersWithRoles = profiles.map((profile) => ({
+      const usersWithRoles = sortedProfiles.map((profile) => ({
         ...profile,
         user_roles: userRolesData
           ?.filter((ur) => ur.user_id === profile.user_id)
@@ -123,14 +126,14 @@ export function useRolesPermissions() {
 
   const createRoleMutation = useMutation({
     mutationFn: async (roleData: { name: string; description: string }) => {
-      if (!profile?.tenant_id) throw new Error("No tenant found");
+      if (!tenantId) throw new Error("No tenant found");
 
       const { data, error } = await supabase
         .from("roles")
         .insert({
           name: roleData.name,
           description: roleData.description,
-          tenant_id: profile.tenant_id,
+          tenant_id: tenantId,
         })
         .select()
         .single();
