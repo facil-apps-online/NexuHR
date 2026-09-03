@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -70,12 +70,6 @@ export function UserRolesList({
     );
   }
 
-  const getInitials = (firstName?: string | null, lastName?: string | null) => {
-    const first = firstName?.charAt(0)?.toUpperCase() || "";
-    const last = lastName?.charAt(0)?.toUpperCase() || "";
-    return first + last || "U";
-  };
-
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {users.map((user) => (
@@ -83,12 +77,12 @@ export function UserRolesList({
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={user.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {getInitials(user.first_name, user.last_name)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  avatarUrl={user.avatar_url}
+                  firstName={user.first_name}
+                  lastName={user.last_name}
+                  className="h-12 w-12"
+                />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium truncate">
                     {user.first_name || user.last_name

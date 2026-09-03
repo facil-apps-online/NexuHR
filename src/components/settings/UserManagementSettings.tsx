@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   Select,
   SelectContent,
@@ -194,12 +194,6 @@ export function UserManagementSettings() {
   const activeUsers = users.filter((u) => u.active !== false);
   const inactiveUsers = users.filter((u) => u.active === false);
 
-  const getInitials = (firstName?: string | null, lastName?: string | null) => {
-    const first = firstName?.charAt(0)?.toUpperCase() || "";
-    const last = lastName?.charAt(0)?.toUpperCase() || "";
-    return first + last || "U";
-  };
-
   if (isLoading) {
     return (
       <Card>
@@ -312,12 +306,12 @@ export function UserManagementSettings() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={user.avatar_url || undefined} />
-                            <AvatarFallback className="bg-primary/10 text-primary">
-                              {getInitials(user.first_name, user.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <UserAvatar
+                            avatarUrl={user.avatar_url}
+                            firstName={user.first_name}
+                            lastName={user.last_name}
+                            className="h-10 w-10"
+                          />
                           <div>
                             <p className="font-medium">
                               {user.first_name || user.last_name
