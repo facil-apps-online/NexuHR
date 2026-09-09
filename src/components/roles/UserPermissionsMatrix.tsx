@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -133,7 +132,7 @@ export function UserPermissionsMatrix({
   }
 
   return (
-    <ScrollArea className="w-full max-h-[400px]">
+    <div className="w-full max-h-[400px] overflow-y-auto overflow-x-auto rounded-md">
       <div className="min-w-[500px]">
         <Table>
           <TableHeader>
@@ -223,7 +222,6 @@ export function UserPermissionsMatrix({
           </TableBody>
         </Table>
       </div>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    </div>
   );
 }
