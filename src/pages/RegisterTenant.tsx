@@ -100,6 +100,8 @@ export default function RegisterTenant() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const platformId = import.meta.env.VITE_PLATFORM_ID;
+  // Token de invitación de vendedor (?ref=... en el link que comparte el equipo comercial).
+  const inviteRef = useMemo(() => new URLSearchParams(window.location.search).get('ref') || undefined, []);
   const { data: publicData, isLoading, isError } = usePublicRegistrationData(platformId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usePhysicalAsBilling, setUsePhysicalAsBilling] = useState(true);
@@ -303,6 +305,7 @@ export default function RegisterTenant() {
         longitude: values.longitude,
         recaptcha_token: values.recaptcha_token, // Recaptcha se valida en Core
         platform_id: platformId, // Asegurarse que platform_id esté incluido en el payload de Core
+        invite_ref: inviteRef, // Token de invitación de vendedor, si vino por el link
       };
 
       // 'coreSupabase' es el cliente para el backend de Core
