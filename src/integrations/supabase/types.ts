@@ -2853,6 +2853,10 @@ export type Database = {
         Returns: number
       }
       get_current_employee_id: { Args: never; Returns: string }
+      get_dashboard_stats: {
+        Args: { p_reference_date?: string }
+        Returns: Record<string, unknown>
+      }
       get_tenant_users: {
         Args: { p_tenant_id: string }
         Returns: {

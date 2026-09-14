@@ -33,6 +33,7 @@ export type DashboardStatsBlock = {
 
 export type AlertItem = {
   id: string;
+  module?: string;
   type: "urgent" | "warning" | "info";
   title: string;
   description: string;
@@ -41,6 +42,7 @@ export type AlertItem = {
 
 export type DeadlineItem = {
   id: string;
+  module?: string;
   title: string;
   type: "exam" | "signature" | "committee" | "training";
   date: string;
@@ -77,6 +79,9 @@ export type DashboardStats = {
   evaluations?: DashboardStatsBlock;
   communications?: DashboardStatsBlock;
   notifications?: DashboardStatsBlock;
+  incapacidades?: DashboardStatsBlock;
+  activos_fijos?: DashboardStatsBlock;
+  dotacion?: DashboardStatsBlock;
   alerts?: AlertItem[];
   alerts_total?: number;
   upcoming_deadlines?: DeadlineItem[];
@@ -87,7 +92,7 @@ export function useDashboardStats(params?: { referenceDate?: Date }) {
   return useQuery<DashboardStats>({
     queryKey: ["dashboard-stats", params?.referenceDate?.toISOString() ?? "current"],
     queryFn: async () => {
-      const rpcParams: Record<string, unknown> = {};
+      const rpcParams: { p_reference_date?: string } = {};
       if (params?.referenceDate) {
         const d = params.referenceDate;
         rpcParams.p_reference_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;

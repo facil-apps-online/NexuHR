@@ -1,5 +1,7 @@
-import { AlertTriangle, Calendar, FileWarning, Clock } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, Calendar, FileWarning, Clock, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 import { useDashboardStats, type AlertItem } from "@/hooks/useDashboardStats";
 
 const typeStyles = {
@@ -23,9 +25,44 @@ const typeStyles = {
   },
 };
 
+const moduleLabels: Record<string, string> = {
+  examenes: "Exámenes",
+  cursos: "Cursos",
+  evaluaciones: "Evaluaciones",
+  eventos: "Eventos y Firmas",
+  comites: "Comités",
+  dotacion: "Dotación",
+  incapacidades: "Incapacidades",
+};
+
+const moduleRoutes: Record<string, string> = {
+  examenes: "/examenes",
+  cursos: "/cursos",
+  evaluaciones: "/evaluaciones",
+  eventos: "/eventos",
+  comites: "/comites",
+  dotacion: "/dotacion",
+  incapacidades: "/incapacidades",
+};
+
 export function AlertList({ referenceDate }: { referenceDate?: Date }) {
   const { data: stats } = useDashboardStats({ referenceDate });
-  const alerts: AlertItem[] = stats?.alerts ?? [];
+  const [activeModule, setActiveModule] = useState<string>("all");
+  const alerts = useMemo(() => stats?.alerts ?? [], [stats]);
+
+  const moduleCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    alerts.forEach((a) => {
+      const key = a.module ?? "otros";
+      counts.set(key, (counts.get(key) ?? 0) + a.count);
+    });
+    return counts;
+  }, [alerts]);
+
+  const filtered =
+    activeModule === "all"
+      ? alerts
+      : alerts.filter((a) => (a.module ?? "otros") === activeModule);
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-card">
@@ -35,20 +72,48 @@ export function AlertList({ referenceDate }: { referenceDate?: Date }) {
           {stats?.alerts_total ?? 0} alertas
         </span>
       </div>
-      
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveModule("all")}
+          className={cn(
+            "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+            activeModule === "all"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border text-muted-foreground hover:bg-secondary"
+          )}
+        >
+          Todos ({stats?.alerts_total ?? 0})
+        </button>
+        {[...moduleCounts.entries()].map(([mod, count]) => (
+          <button
+            key={mod}
+            type="button"
+            onClick={() => setActiveModule(mod)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              activeModule === mod
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-muted-foreground hover:bg-secondary"
+            )}
+          >
+            {moduleLabels[mod] ?? mod} ({count})
+          </button>
+        ))}
+      </div>
       <div className="space-y-3">
-        {alerts.length === 0 ? (
+        {filtered.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No hay alertas pendientes
           </p>
         ) : (
-          alerts.slice(0, 7).map((alert) => {
+          filtered.slice(0, 8).map((alert) => {
             const style = typeStyles[alert.type];
             const Icon = style.icon;
-            
-            return (
+            const route = moduleRoutes[alert.module ?? ""];
+            const row = (
               <div
-                key={alert.id}
                 className={cn(
                   "flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-secondary/50 cursor-pointer",
                   style.bg,
@@ -60,15 +125,21 @@ export function AlertList({ referenceDate }: { referenceDate?: Date }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium">{alert.title}</p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {alert.description}
-                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{alert.description}</p>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
                   <Clock className="h-3 w-3" />
                   {alert.count > 0 ? `${alert.count} pendiente${alert.count !== 1 ? "s" : ""}` : ""}
                 </div>
+                {route && <ChevronRight className="mt-1 h-4 w-4 text-muted-foreground" />}
               </div>
+            );
+            return route ? (
+              <Link key={alert.id} to={route} className="block">
+                {row}
+              </Link>
+            ) : (
+              <div key={alert.id}>{row}</div>
             );
           })
         )}

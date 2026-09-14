@@ -13,6 +13,12 @@ interface StatCardProps {
     isPositive: boolean;
   };
   variant?: "default" | "success" | "warning" | "danger";
+  progress?: {
+    value: number;
+    invert?: boolean;
+    label?: string;
+  };
+  embedded?: boolean;
 }
 
 const variantStyles = {
@@ -29,6 +35,17 @@ const iconStyles = {
   danger: "bg-destructive/10 text-destructive",
 };
 
+function progressColor(value: number, invert?: boolean) {
+  if (invert) {
+    if (value <= 10) return "bg-success";
+    if (value <= 30) return "bg-warning";
+    return "bg-destructive";
+  }
+  if (value >= 80) return "bg-success";
+  if (value >= 50) return "bg-warning";
+  return "bg-destructive";
+}
+
 export function StatCard({
   title,
   value,
@@ -37,13 +54,17 @@ export function StatCard({
   href,
   trend,
   variant = "default",
+  progress,
+  embedded = false,
 }: StatCardProps) {
   const content = (
     <div
       className={cn(
-        "rounded-xl border p-6 shadow-card transition-all duration-200 hover:shadow-card-hover card-interactive",
+        "rounded-xl border p-6 transition-all duration-200 card-interactive",
+        embedded ? "" : "shadow-card hover:shadow-card-hover",
         href && "cursor-pointer",
-        variantStyles[variant]
+        variantStyles[variant],
+        embedded && variant === "default" && "bg-background/40 hover:border-primary/30"
       )}
     >
       <div className="flex items-start justify-between">
@@ -71,6 +92,22 @@ export function StatCard({
           <Icon className="h-6 w-6" />
         </div>
       </div>
+      {progress && (
+        <div className="mt-4 space-y-1.5">
+          {progress.label && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{progress.label}</span>
+              <span className="font-semibold tabular-nums">{progress.value}%</span>
+            </div>
+          )}
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className={cn("h-full rounded-full transition-all", progressColor(progress.value, progress.invert))}
+              style={{ width: `${Math.min(Math.max(progress.value, 0), 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 
